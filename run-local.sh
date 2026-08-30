@@ -243,6 +243,7 @@ fi
 
 head2 "Starting services"
 
+[ -f "$ROOT/gisec-hub/.env" ] && { set -a; . "$ROOT/gisec-hub/.env"; set +a; }
 WALL_DIR="$WALL_DIST" ARCADE_DIR="$ARCADE_DIR" PORT="$HUB_PORT" \
   node "$ROOT/gisec-hub/server.js" > "$LOGS/hub.log" 2>&1 &
 echo $! > "$LOGS/hub.pid"
