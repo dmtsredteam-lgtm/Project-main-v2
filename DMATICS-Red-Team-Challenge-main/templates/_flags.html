@@ -1,0 +1,10 @@
+<div class="flagbar" aria-label="Flags captured">
+  {% for f in ['FLAG-1','FLAG-2','FLAG-3','FLAG-4','FLAG-5'] %}
+    {% if f in p.captured %}
+      <span class="chip on" title="{{ f }} captured">{{ f }}<span class="tick">✓</span></span>
+    {% else %}
+      <span class="chip" title="{{ f }} not captured yet">{{ f }}</span>
+    {% endif %}
+  {% endfor %}
+  <span class="flagbar-count">{{ p.captured|length }}/5 captured</span>
+</div>

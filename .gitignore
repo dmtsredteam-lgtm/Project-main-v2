@@ -1,0 +1,30 @@
+# Dependencies — reinstalled with `npm install`, never committed.
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.next/
+.vercel/
+
+# Secrets. .env.example is committed; .env is not, ever.
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Runtime state, not source.
+#
+# The leaderboard databases hold visitor names typed in at the stand. They are
+# other people's data, they are recreated empty on first run, and they have no
+# business in a repository.
+gisec-hub/data/
+DMATICS-Red-Team-Challenge-main/data/
+logs/
+*.log
+*.pid
+
+# Scratch.
+_to_delete/
+_backup-*/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,15 @@
+{
+  "name": "gisec-arena-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DMATICS GISEC 2026 Arena Hub — unified leaderboard, live game telemetry and SOC containment channel across the Cyber Arcade, the Red Team Challenge and the SOC Wall.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {}
+}

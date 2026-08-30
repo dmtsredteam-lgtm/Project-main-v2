@@ -1,0 +1,91 @@
+:root {
+  color-scheme: dark;
+  --void: #02050a;
+  --space: #050a12;
+  --glass: rgba(8, 18, 30, .66);
+  --glass-deep: rgba(5, 14, 25, .86);
+  --glass-soft: rgba(16, 32, 49, .42);
+  --line: rgba(139, 207, 234, .14);
+  --line-bright: rgba(89, 224, 255, .35);
+  --text: #ecf9ff;
+  --text-soft: #b1c9d6;
+  --muted: #668294;
+  --muted-rgb: 102, 130, 148;
+  --cyan: #54e7ff;
+  --cyan-rgb: 84, 231, 255;
+  --blue: #3994ff;
+  --purple: #a879ff;
+  --purple-rgb: 168, 121, 255;
+  --critical: #ff496c;
+  --critical-rgb: 255, 73, 108;
+  --warning: #ffbd59;
+  --warning-rgb: 255, 189, 89;
+  --emerald: #3ee6a1;
+  --emerald-rgb: 62, 230, 161;
+  --radius: 18px;
+  /* The three webfonts come from Google Fonts, which the booth may not be able
+     to reach — the show wifi is other people's, and the wall is designed to work
+     with no internet at all. Each stack therefore names fonts that are already
+     on a Windows, macOS or Linux machine, in that order, so the wall looks
+     deliberate rather than broken when the request never lands. Verified by
+     loading the wall with the font host blocked. */
+  --font-display: "Oxanium", "Bahnschrift", "DIN Alternate", "Arial Narrow", "Liberation Sans Narrow", sans-serif;
+  --font-sans: "Inter", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Space Mono", "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
+}
+
+body {
+  color: var(--text);
+  background:
+    radial-gradient(circle at 49% 37%, rgba(22, 121, 160, .16), transparent 29%),
+    radial-gradient(circle at 83% 14%, rgba(114, 57, 194, .10), transparent 28%),
+    linear-gradient(145deg, #02050a 0%, #06101c 48%, #02060b 100%);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.45;
+  letter-spacing: .01em;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0, rgba(255,255,255,.018) 1px, transparent 1px, transparent 4px);
+  mix-blend-mode: soft-light;
+  opacity: .42;
+}
+
+#ambient-canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: .7; }
+.ambient-grid { position: fixed; inset: 0; pointer-events: none; opacity: .26; background-image: linear-gradient(rgba(84,231,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(84,231,255,.045) 1px, transparent 1px); background-size: 68px 68px; mask-image: radial-gradient(circle at center, #000 10%, transparent 82%); }
+
+.glass-panel {
+  position: relative;
+  background: linear-gradient(145deg, rgba(17, 35, 52, .64), rgba(4, 12, 22, .78));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 22px 50px rgba(0,0,0,.24), 0 0 34px rgba(23, 121, 151, .035);
+  backdrop-filter: blur(20px) saturate(120%);
+}
+
+.glass-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(115deg, rgba(255,255,255,.045), transparent 24%, transparent 76%, rgba(84,231,255,.025));
+}
+
+.glass-inset { background: rgba(4, 13, 23, .62); border: 1px solid rgba(114, 190, 222, .12); border-radius: 13px; box-shadow: inset 0 1px 18px rgba(0,0,0,.28); backdrop-filter: blur(12px); }
+.eyebrow, .section-label, .panel-title, .metric-top, small { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .15em; }
+.eyebrow { color: var(--cyan); font-size: 9px; font-weight: 600; }
+.eyebrow i { display: inline-block; width: 5px; height: 5px; margin-right: 7px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+.good { color: var(--emerald) !important; }
+.hot { color: var(--critical) !important; }
+.warning { color: var(--warning) !important; }
+
+::selection { background: rgba(84, 231, 255, .25); color: white; }
+*:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+

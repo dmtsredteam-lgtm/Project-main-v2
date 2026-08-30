@@ -1,0 +1,21 @@
+# `COPY . .` copies everything the build context can see. Without this file
+# that included .env — the operator's real SECRET_KEY, baked into an image layer
+# that survives every `docker save`, every registry push and every `docker
+# history`. It also included the .git directory and the live leaderboard.
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+data/
+*.db
+*.sqlite3
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+.DS_Store
+*.log

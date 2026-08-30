@@ -1,0 +1,1227 @@
+<title>GISEC Arena Run Book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..800;1,62..125,400..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* ===========================================================================
+   GISEC Arena Run Book
+   A field manual, not a dashboard. Cool architectural paper, ink-black type,
+   the booth's own signal colours used only where they mean something.
+   Archivo at an expanded width does the signage headings; IBM Plex Mono
+   carries every identifier, port and command so they never blur into prose.
+   ========================================================================= */
+
+:root {
+  --paper:      #EBEEF2;
+  --surface:    #FDFEFF;
+  --surface-2:  #F3F6F9;
+  --ink:        #101820;
+  --ink-2:      #33424F;
+  --muted:      #64757F;
+  --rule:       #D3DAE1;
+  --rule-soft:  #E2E7EC;
+
+  --accent:     #0B6E78;   /* the wall's cyan, taken down to ink weight */
+  --accent-tint:#DCEEF0;
+  --signal:     #B32338;   /* containment / red team */
+  --signal-tint:#F7E1E4;
+  --warn:       #9A6410;   /* throttle / advisory */
+  --warn-tint:  #F6EBD8;
+  --good:       #1C6B4B;
+  --good-tint:  #DDEEE5;
+
+  --shadow: 0 1px 2px rgba(16,24,32,.05), 0 8px 24px -12px rgba(16,24,32,.18);
+
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "Instrument Sans", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --measure: 68ch;
+  --gutter: clamp(20px, 5vw, 64px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #0A0F14;
+    --surface:    #111A22;
+    --surface-2:  #16212B;
+    --ink:        #E6EEF4;
+    --ink-2:      #B7C7D2;
+    --muted:      #7A8D9A;
+    --rule:       #253340;
+    --rule-soft:  #1C2933;
+
+    --accent:     #4FD3E0;
+    --accent-tint:#10333A;
+    --signal:     #FF6B80;
+    --signal-tint:#3A1620;
+    --warn:       #EBAB4A;
+    --warn-tint:  #33260F;
+    --good:       #4FD09B;
+    --good-tint:  #103023;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper:      #0A0F14;
+  --surface:    #111A22;
+  --surface-2:  #16212B;
+  --ink:        #E6EEF4;
+  --ink-2:      #B7C7D2;
+  --muted:      #7A8D9A;
+  --rule:       #253340;
+  --rule-soft:  #1C2933;
+
+  --accent:     #4FD3E0;
+  --accent-tint:#10333A;
+  --signal:     #FF6B80;
+  --signal-tint:#3A1620;
+  --warn:       #EBAB4A;
+  --warn-tint:  #33260F;
+  --good:       #4FD09B;
+  --good-tint:  #103023;
+
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 var(--gutter) 96px; }
+.prose { max-width: var(--measure); }
+
+/* ---- masthead ----------------------------------------------------------- */
+.masthead {
+  padding: clamp(48px, 8vw, 96px) 0 clamp(28px, 4vw, 44px);
+  border-bottom: 2px solid var(--ink);
+}
+.kicker {
+  display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: baseline;
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+}
+.kicker b { color: var(--signal); font-weight: 600; }
+h1 {
+  margin: 22px 0 0;
+  font-family: var(--display);
+  font-variation-settings: "wdth" 112;
+  font-weight: 700;
+  font-size: clamp(38px, 7.2vw, 86px);
+  line-height: .95;
+  letter-spacing: -.022em;
+  text-wrap: balance;
+}
+h1 em { font-style: normal; color: var(--accent); }
+.standfirst {
+  max-width: 58ch; margin: 20px 0 0;
+  font-size: clamp(17px, 1.5vw, 20px); line-height: 1.55; color: var(--ink-2);
+}
+
+/* ---- the four surfaces -------------------------------------------------- */
+.surfaces { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px; margin-top: 38px; background: var(--rule); border: 1px solid var(--rule); }
+.surface-cell { padding: 16px 18px 18px; background: var(--surface); }
+.surface-cell small { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.surface-cell strong { display: block; margin-top: 7px; font-family: var(--display); font-variation-settings: "wdth" 104; font-size: 17px; font-weight: 600; letter-spacing: -.005em; }
+.surface-cell span { display: block; margin-top: 4px; font-size: 13px; color: var(--muted); }
+.surface-cell[data-role="hub"] { background: var(--accent-tint); }
+.surface-cell[data-role="hub"] small { color: var(--accent); }
+
+/* ---- sections ----------------------------------------------------------- */
+section { padding-top: clamp(46px, 6vw, 76px); }
+h2 {
+  display: flex; align-items: baseline; gap: 14px;
+  margin: 0 0 6px;
+  font-family: var(--display); font-variation-settings: "wdth" 108;
+  font-weight: 700; font-size: clamp(25px, 3vw, 36px); line-height: 1.1;
+  letter-spacing: -.018em; text-wrap: balance;
+}
+h2::before {
+  content: attr(data-tag);
+  flex: none;
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  letter-spacing: .12em; color: var(--accent);
+  transform: translateY(-.35em);
+}
+h3 {
+  margin: 34px 0 8px;
+  font-family: var(--display); font-variation-settings: "wdth" 100;
+  font-weight: 650; font-size: 19px; letter-spacing: -.006em;
+}
+h4 { margin: 26px 0 6px; font-size: 15px; font-weight: 650; letter-spacing: .002em; }
+p { margin: 0 0 16px; }
+.lede { font-size: 17.5px; color: var(--ink-2); }
+a { color: var(--accent); text-underline-offset: 3px; }
+strong { font-weight: 650; }
+code, kbd {
+  font-family: var(--mono); font-size: .875em;
+  padding: .12em .38em; border-radius: 3px;
+  background: var(--surface-2); border: 1px solid var(--rule-soft);
+  white-space: nowrap;
+}
+
+/* ---- callouts ----------------------------------------------------------- */
+.note {
+  margin: 26px 0; padding: 18px 22px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.note p:last-child { margin-bottom: 0; }
+.note--signal { border-left-color: var(--signal); }
+.note--warn { border-left-color: var(--warn); }
+.note-label {
+  display: block; margin-bottom: 7px;
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--accent);
+}
+.note--signal .note-label { color: var(--signal); }
+.note--warn .note-label { color: var(--warn); }
+
+.pullquote {
+  margin: 34px 0; padding: 30px clamp(22px, 3vw, 40px);
+  background: var(--surface);
+  border-top: 2px solid var(--ink); border-bottom: 1px solid var(--rule);
+  font-size: clamp(17px, 1.7vw, 20px); line-height: 1.62; color: var(--ink);
+}
+.pullquote p { margin: 0; max-width: 72ch; }
+.pullquote em { font-style: italic; color: var(--signal); }
+
+/* ---- tables ------------------------------------------------------------- */
+.table-scroll { margin: 22px 0; overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+th, td { padding: 11px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule-soft); }
+thead th {
+  position: sticky; top: 0;
+  background: var(--surface-2);
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+  letter-spacing: .13em; text-transform: uppercase; color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+}
+tbody tr:last-child td { border-bottom: 0; }
+td code { background: transparent; border: 0; padding: 0; color: var(--ink-2); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.file { font-family: var(--mono); font-size: 13px; color: var(--accent); white-space: nowrap; }
+
+.chip {
+  display: inline-block; padding: 2px 8px; border-radius: 2px;
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
+}
+.chip--new { background: var(--good-tint); color: var(--good); }
+.chip--edit { background: var(--surface-2); color: var(--muted); border: 1px solid var(--rule); }
+
+/* ---- architecture diagram ----------------------------------------------- */
+.diagram { margin: 26px 0 8px; padding: 8px 0; overflow-x: auto; }
+.diagram svg { display: block; min-width: 720px; width: 100%; height: auto; }
+.dg-box { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
+.dg-hub { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 2; }
+.dg-title { fill: var(--ink); font-family: var(--display); font-size: 14px; font-weight: 650; font-variation-settings: "wdth" 104; }
+.dg-sub { fill: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .08em; }
+.dg-note { fill: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .05em; }
+.dg-up { stroke: var(--ink-2); stroke-width: 1.5; fill: none; }
+.dg-down { stroke: var(--accent); stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; }
+.dg-cap { fill: var(--accent); font-family: var(--mono); font-size: 10px; letter-spacing: .08em; }
+.diagram-caption { font-size: 13px; color: var(--muted); max-width: var(--measure); }
+
+/* ---- escalation ladder --------------------------------------------------- */
+.ladder { margin: 30px 0 8px; }
+.heatbar {
+  position: relative; height: 22px; border-radius: 2px; overflow: hidden;
+  background: linear-gradient(90deg, var(--good) 0%, var(--warn) 58%, var(--signal) 100%);
+  opacity: .92;
+}
+.heatscale { position: relative; height: 42px; margin-top: 6px; }
+.tick { position: absolute; top: 0; transform: translateX(-50%); text-align: center; }
+.tick i { display: block; width: 1px; height: 9px; margin: 0 auto 5px; background: var(--ink-2); }
+.tick b { display: block; font-family: var(--mono); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tick span { display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.tick[data-tone="warn"] b { color: var(--warn); }
+.tick[data-tone="hot"] b { color: var(--signal); }
+.tick[data-tone="good"] b { color: var(--good); }
+
+.tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 26px; }
+.tier { padding: 18px 20px; background: var(--surface); border: 1px solid var(--rule); border-top: 3px solid var(--accent); box-shadow: var(--shadow); }
+.tier[data-tone="warn"] { border-top-color: var(--warn); }
+.tier[data-tone="hot"] { border-top-color: var(--signal); }
+.tier-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.tier-head strong { font-family: var(--display); font-variation-settings: "wdth" 104; font-size: 16px; font-weight: 700; letter-spacing: .04em; }
+.tier-head span { font-family: var(--mono); font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
+.tier[data-tone="warn"] .tier-head span { color: var(--warn); }
+.tier[data-tone="hot"] .tier-head span { color: var(--signal); }
+.tier dl { margin: 14px 0 0; display: grid; gap: 10px; }
+.tier dt { font-family: var(--mono); font-size: 9.5px; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
+.tier dd { margin: 2px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+
+/* ---- code blocks --------------------------------------------------------- */
+pre {
+  margin: 18px 0; padding: 16px 18px; overflow-x: auto;
+  background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--ink-2);
+  font-family: var(--mono); font-size: 13px; line-height: 1.65; color: var(--ink);
+}
+pre .c { color: var(--muted); }
+pre .k { color: var(--accent); }
+
+/* ---- numbered steps ------------------------------------------------------ */
+.steps { counter-reset: step; margin: 26px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.steps > li { counter-increment: step; padding: 22px 24px 24px 68px; position: relative; background: var(--surface); border: 1px solid var(--rule); }
+.steps > li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute; left: 22px; top: 22px;
+  font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--accent);
+}
+.steps h3 { margin: 0 0 8px; font-size: 17px; }
+.steps p { font-size: 14.5px; }
+.steps p:last-child, .steps pre:last-child { margin-bottom: 0; }
+
+/* ---- checklist ----------------------------------------------------------- */
+.checklist { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 1px; background: var(--rule-soft); border: 1px solid var(--rule); }
+.checklist li { background: var(--surface); }
+.checklist label { display: flex; gap: 13px; align-items: flex-start; padding: 12px 18px; cursor: pointer; font-size: 14.5px; }
+.checklist input { flex: none; width: 17px; height: 17px; margin: 3px 0 0; accent-color: var(--accent); cursor: pointer; }
+.checklist input:checked + span { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.checklist label:hover { background: var(--surface-2); }
+.check-reset {
+  margin-top: 14px; padding: 7px 14px; cursor: pointer;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); background: transparent; border: 1px solid var(--rule); border-radius: 2px;
+}
+.check-reset:hover { color: var(--ink); border-color: var(--ink-2); }
+
+/* ---- misc ---------------------------------------------------------------- */
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 26px; }
+ul.tight { margin: 0 0 16px; padding-left: 20px; }
+ul.tight li { margin-bottom: 7px; }
+.footer { margin-top: clamp(60px, 8vw, 96px); padding-top: 26px; border-top: 2px solid var(--ink); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+
+*:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (max-width: 640px) {
+  .steps > li { padding: 20px 18px 22px 18px; }
+  .steps > li::before { position: static; display: block; margin-bottom: 8px; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="kicker">
+      <span>DMATICS IT Solutions LLC</span>
+      <span>Hall 4 · Dubai World Trade Centre</span>
+      <b>Booth run book</b>
+    </div>
+    <h1>The GISEC&nbsp;Arena<br><em>Run Book</em></h1>
+    <p class="standfirst">
+      Three separate projects — an iPad arcade, a laptop CTF and a SOC wall — now run as
+      one show. This is how it fits together, how to start it, and what to do when the
+      Wi-Fi wobbles at 11am on day two.
+    </p>
+
+    <div class="surfaces">
+      <div class="surface-cell"><small>iPad</small><strong>Cyber Arcade</strong><span>Phish Hunter · Alert Rush · Breach Point</span></div>
+      <div class="surface-cell"><small>Laptop 01 / 02</small><strong>Red Team Challenge</strong><span>Five-stage breach of Aegis Vault Systems</span></div>
+      <div class="surface-cell"><small>Big screen</small><strong>SOC Wall</strong><span>Globe, telemetry, arena leaderboard</span></div>
+      <div class="surface-cell" data-role="hub"><small>New · port 7788</small><strong>Arena Hub</strong><span>Ties all three together</span></div>
+    </div>
+  </header>
+
+  <section>
+    <h2 data-tag="A">What was built</h2>
+    <div class="prose">
+      <p class="lede">
+        The three projects existed and worked. None of them knew the others were there.
+        One new service — the <strong>Arena Hub</strong>, about 600 lines of dependency-free
+        Node — now sits between them.
+      </p>
+      <p>
+        It does four things: take in telemetry from every game, normalise it into the shape
+        the SOC wall's alert pipeline already speaks, keep one leaderboard across all four
+        games, and fan events out over Server-Sent Events — including back down to a red
+        team laptop, so the SOC can interrupt a running game.
+      </p>
+    </div>
+
+    <div class="note note--signal">
+      <span class="note-label">The governing rule</span>
+      <p>
+        <strong>The hub is never load-bearing.</strong> Unplug it mid-show and three games
+        keep running exactly as before — only the shared board and the cross-screen theatre
+        stop. Every integration point was built that way deliberately, and it was tested
+        with the hub killed and with the hub pointed at an unroutable address. Worst-case
+        request time went from <span class="num">23&nbsp;ms</span> to
+        <span class="num">26&nbsp;ms</span>.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-tag="B">The show, in one paragraph</h2>
+    <div class="pullquote">
+      <p>
+        A visitor sits at Laptop&nbsp;02 and starts breaching <em>Aegis Vault Systems</em>. On the
+        big screen an arc lights up on the globe and the AEGIS AI panel says what it just saw.
+        The visitor fumbles a password. The wall's operation card switches to their name and a
+        heat bar starts filling — the crowd can see how close they are to being caught before
+        they can. They fumble another. The wall flashes
+        <em>SOC RESPONSE — ADAPTIVE THROTTLE ENGAGED</em>, and 1.9 seconds later the laptop
+        screen is taken over: session held, twelve-second countdown, clock still running.
+        People look at the big screen, then at the laptop, and understand what a SOC does
+        without anyone explaining it.
+      </p>
+    </div>
+  </section>
+
+
+  <section>
+    <h2 data-tag="C">Try it on one machine first</h2>
+    <div class="prose">
+      <p class="lede">
+        Before any of this goes near the show floor, <code>run-local.sh</code> brings the
+        whole booth up on a single laptop — no Docker, no npm build.
+      </p>
+      <p>
+        <code>soc-wall-main/dist/</code> ships pre-built, so the rig needs only
+        <strong>Node 18+</strong> and <strong>Python 3</strong>. Two processes come up: the
+        Arena Hub on <code>:7788</code>, which also serves the wall and the arcade, and the
+        Red Team Challenge on <code>:8000</code>.
+      </p>
+    </div>
+
+<pre><span class="c">cd</span> ~/Downloads/Project
+chmod +x run-local.sh simulate.sh
+./run-local.sh</pre>
+
+    <div class="prose">
+      <p>
+        The script checks its prerequisites, creates a <code>.venv</code> and installs Flask
+        the first time, waits for both services to actually answer rather than sleeping and
+        hoping, prints the URLs, and tears everything down on Ctrl-C. If a service dies it
+        says so and shows the last dozen log lines.
+      </p>
+      <p>
+        Both services bind <code>0.0.0.0</code> and the script prints the machine's LAN
+        address, so the iPad, the laptops and the big screen can be four separate devices —
+        or any phone on the same Wi-Fi can open the wall and watch. The address baked into
+        the red team pages is the LAN one, not loopback: hand a laptop
+        <code>127.0.0.1</code> and its browser points at itself, the SOC stream never
+        connects, and nothing that laptop does reaches the wall. Override the detected
+        address with <code>LAN_IP=10.0.0.5 ./run-local.sh</code> on a multi-homed box, and
+        open the ports if a device cannot connect:
+        <code>sudo ufw allow 7788/tcp &amp;&amp; sudo ufw allow 8000/tcp</code>.
+      </p>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Surface</th><th>Open</th></tr></thead>
+        <tbody>
+          <tr><td>SOC Wall</td><td><code>http://&lt;lan-ip&gt;:7788/</code></td></tr>
+          <tr><td>Laptop 01</td><td><code>http://&lt;lan-ip&gt;:8000/?station=LAPTOP-01</code></td></tr>
+          <tr><td>Laptop 02</td><td><code>http://&lt;lan-ip&gt;:8000/?station=LAPTOP-02</code></td></tr>
+          <tr><td>Arcade</td><td><code>http://&lt;lan-ip&gt;:7788/arcade</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note note--warn">
+      <span class="note-label">Two laptops on one machine</span>
+      <p>
+        The two station URLs need <strong>separate cookies</strong> to be separate operators.
+        Use two different browsers, or one normal window and one private window — otherwise
+        both tabs share a session and the wall sees one station.
+      </p>
+    </div>
+
+    <h3>The simulator</h3>
+    <div class="prose">
+      <p>
+        <code>simulate.sh</code> plays a whole run against the real Flask routes — same
+        session, same heat engine a visitor hits — so you can watch the wall react without
+        clicking through five stages. It prints heat and posture after every action, so the
+        terminal and the wall tell the same story side by side.
+      </p>
+    </div>
+
+<pre>./simulate.sh            <span class="c"># noisy operator: throttled repeatedly, still finishes</span>
+./simulate.sh --clean    <span class="c"># careful operator at human pace: SOC never interrupts</span>
+./simulate.sh --bust     <span class="c"># four bad passwords, contained</span>
+./simulate.sh --arcade   <span class="c"># drop a morning's arcade scores on the board</span></pre>
+
+    <div class="prose">
+      <p>
+        Put the wall on one half of the screen and the terminal on the other. The
+        <code>--clean</code> run is the one to show a colleague: a tidy operator gets noticed
+        but never held, which is what makes the throttle feel earned when it does land.
+      </p>
+    </div>
+
+    <div class="note">
+      <span class="note-label">On Kali</span>
+      <p>
+        The hub needs Node 18, which stock Kali has. <em>Rebuilding</em> the wall needs Node
+        22.13+ for Vite 8, which stock Kali usually does not — that is exactly why
+        <code>dist/</code> ships pre-built. You only need the newer Node if you change
+        something under <code>soc-wall-main/</code>, and <code>nvm install 22</code> is the
+        easiest way to get it. Docker is not needed at all: the rig runs Flask directly in a
+        virtualenv.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-tag="D">Architecture</h2>
+
+    <div class="diagram">
+      <svg viewBox="0 0 980 400" role="img" aria-label="The three booth games send telemetry and scores up to the Arena Hub on port 7788; the hub streams alerts, scores, station posture and commands back down to the SOC Wall and to the red team laptops.">
+        <!-- game boxes -->
+        <rect class="dg-box" x="20" y="20" width="230" height="70" rx="3"/>
+        <text class="dg-title" x="38" y="48">Cyber Arcade</text>
+        <text class="dg-sub" x="38" y="68">iPAD · NEXT.JS</text>
+
+        <rect class="dg-box" x="290" y="20" width="230" height="70" rx="3"/>
+        <text class="dg-title" x="308" y="48">Red Team Challenge</text>
+        <text class="dg-sub" x="308" y="68">LAPTOP 01 / 02 · FLASK :8000</text>
+
+        <rect class="dg-box" x="730" y="20" width="230" height="70" rx="3"/>
+        <text class="dg-title" x="748" y="48">SOC Wall</text>
+        <text class="dg-sub" x="748" y="68">BIG SCREEN · VITE</text>
+
+        <!-- hub -->
+        <rect class="dg-hub" x="290" y="290" width="400" height="88" rx="3"/>
+        <text class="dg-title" x="314" y="320">Arena Hub</text>
+        <text class="dg-sub" x="314" y="340">PORT 7788 · ZERO DEPENDENCIES</text>
+        <text class="dg-sub" x="314" y="360">INGEST · NORMALISE · SCORE · FAN OUT</text>
+
+        <!-- up arrows from games to hub -->
+        <path class="dg-up" d="M135 90 L135 250 L330 250 L330 290"/>
+        <path class="dg-up" d="M405 90 L405 290"/>
+        <text class="dg-note" x="150" y="130">POST /api/scores</text>
+        <text class="dg-note" x="150" y="146">POST /api/events</text>
+        <text class="dg-note" x="420" y="130">POST /api/events</text>
+        <text class="dg-note" x="420" y="146">POST /api/scores</text>
+        <text class="dg-note" x="420" y="162">POST /api/command</text>
+
+        <!-- hub to wall -->
+        <path class="dg-down" d="M690 320 L845 320 L845 90"/>
+        <text class="dg-cap" x="700" y="180">SSE /api/stream</text>
+        <text class="dg-note" x="700" y="200">alert · score · station · command</text>
+
+        <!-- hub back to laptops -->
+        <path class="dg-down" d="M340 290 L250 290 L250 230 L465 230 L465 90"/>
+        <text class="dg-cap" x="256" y="222">SSE /api/command/stream?station=…</text>
+
+        <!-- arrowheads -->
+        <path class="dg-up" d="M325 282 L330 292 L335 282" stroke-linejoin="round"/>
+        <path class="dg-up" d="M400 282 L405 292 L410 282" stroke-linejoin="round"/>
+        <path class="dg-down" d="M840 98 L845 88 L850 98" stroke-dasharray="0" stroke-linejoin="round"/>
+        <path class="dg-down" d="M460 98 L465 88 L470 98" stroke-dasharray="0" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <p class="diagram-caption">Solid lines carry telemetry up. Dashed lines are the live streams back down — including the containment channel that lets the SOC act on a laptop mid-game.</p>
+
+    <div class="prose">
+      <h3>Why a separate service</h3>
+      <p>
+        The arcade's board lives on Vercel KV, the challenge's in SQLite, the wall queries
+        Wazuh. Making any one of them the hub would have tied the booth to that deploy target
+        and to internet access. A standalone process with no dependencies runs from a USB
+        stick on any laptop with Node&nbsp;18, offline — and each game keeps its own storage
+        as a fallback.
+      </p>
+
+      <h3>The alert contract</h3>
+      <p>
+        The hub emits alerts already shaped to what the wall's <code>fetchAlerts()</code>
+        returns. That is the whole trick: a failed password on Laptop&nbsp;02 enters
+        <code>alertStore.add()</code> and the globe, the origin list and the threat timeline
+        pick it up with <strong>zero</strong> downstream changes.
+      </p>
+    </div>
+
+    <h3>Where the attacks appear on the globe</h3>
+    <div class="prose">
+      <p>
+        The stations sit forty metres from the wall, so a truthful arc would be a dot on
+        Dubai. Instead each kill-chain phase is plotted at the exit infrastructure a real
+        operator would route it through — which is also exactly what a SOC sees in source-IP
+        geolocation. Long arcs converging on the Dubai perimeter, and defensible if a
+        visitor asks how it works.
+      </p>
+      <p>
+        Classification is DMATICS' own — plain kill-chain phases rather than any third-party
+        framework's identifiers, so nothing on the booth screen carries another vendor's
+        naming, and <code>CREDENTIAL ACCESS</code> reads across a hall in a way
+        <code>T1110</code> never did.
+      </p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Class</th><th>Plotted origin</th><th>Class</th><th>Plotted origin</th></tr></thead>
+        <tbody>
+          <tr><td><code>RECON</code> Reconnaissance</td><td>Amsterdam</td><td><code>PRIVESC</code> Privilege escalation</td><td>Pyongyang</td></tr>
+          <tr><td><code>CRED</code> Credential access</td><td>Moscow</td><td><code>LATERAL</code> Lateral movement</td><td>Singapore</td></tr>
+          <tr><td><code>ACCESS</code> Valid account use</td><td>Bucharest</td><td><code>EXFIL</code> Exfiltration</td><td>Beijing</td></tr>
+          <tr><td><code>COLLECT</code> Data collection</td><td>Frankfurt</td><td><code>CONTAIN</code> Containment</td><td>Dubai</td></tr>
+          <tr><td><code>EXEC</code> Command execution</td><td>Hanoi</td><td><code>TRAINING</code> Arcade</td><td>Dubai</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-tag="E">The SOC defence loop</h2>
+    <div class="prose">
+      <p class="lede">
+        This is the mechanic the brief asked for: <em>if a password error or certain things
+        get triggered, the SOC defence acts and interrupts the game.</em>
+      </p>
+      <p>
+        Every noisy action raises a <strong>heat</strong> score on the player's session. Heat
+        decays at <span class="num">0.9</span> points per second, so a careful player who
+        takes a minute per stage sheds more than the stage costs and never trips anything. A
+        player who fumbles passwords or hammers the shell climbs.
+      </p>
+    </div>
+
+    <div class="ladder">
+      <div class="heatbar" role="img" aria-label="Heat scale from zero to one hundred, green through amber to red"></div>
+      <div class="heatscale">
+        <div class="tick" data-tone="good" style="left:0%"><i></i><b>0</b><span>Clear</span></div>
+        <div class="tick" data-tone="warn" style="left:34%"><i></i><b>34</b><span>Monitor</span></div>
+        <div class="tick" data-tone="hot" style="left:62%"><i></i><b>62</b><span>Throttle</span></div>
+        <div class="tick" data-tone="hot" style="left:96%"><i></i><b>96</b><span>Contain</span></div>
+      </div>
+
+      <div class="tiers">
+        <div class="tier">
+          <div class="tier-head"><strong>MONITOR</strong><span>34</span></div>
+          <dl>
+            <div><dt>Player gets</dt><dd>An amber advisory banner. Keeps playing.</dd></div>
+            <div><dt>Wall shows</dt><dd>Station turns amber, AI panel narrates the detection.</dd></div>
+          </dl>
+        </div>
+        <div class="tier" data-tone="warn">
+          <div class="tier-head"><strong>THROTTLE</strong><span>62</span></div>
+          <dl>
+            <div><dt>Player gets</dt><dd>Screen taken over. Twelve-second hold — and the run clock keeps running.</dd></div>
+            <div><dt>Wall shows</dt><dd>Red response band across the hero, heat bar spikes.</dd></div>
+          </dl>
+        </div>
+        <div class="tier" data-tone="hot">
+          <div class="tier-head"><strong>CONTAIN</strong><span>96</span></div>
+          <dl>
+            <div><dt>Player gets</dt><dd>Run over, score banked, debrief.</dd></div>
+            <div><dt>Wall shows</dt><dd>Containment band, station goes red.</dd></div>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Action</th><th class="num">Heat</th><th>Action</th><th class="num">Heat</th></tr></thead>
+        <tbody>
+          <tr><td>Recon page</td><td class="num">+6</td><td>SSH failure</td><td class="num">+28</td></tr>
+          <tr><td>Failed portal login</td><td class="num">+20</td><td>Shell command</td><td class="num">+7</td></tr>
+          <tr><td>Successful login</td><td class="num">+10</td><td>Flag captured</td><td class="num">+12</td></tr>
+          <tr><td>Share / file read</td><td class="num">+14</td><td>Vault access</td><td class="num">+40</td></tr>
+          <tr><td>SSH success</td><td class="num">+16</td><td>Sudo escalation</td><td class="num">+70</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <p>
+        The original hard rules are untouched — four bad portal logins, three bad SSH logins,
+        or any <code>sudo</code> escalation still end a run instantly. The heat ladder adds
+        the <strong>middle tier</strong>: the part a visitor can feel building, and the part
+        a crowd can watch building.
+      </p>
+
+      <h3>Why the throttle is the good one</h3>
+      <p>
+        A bust is binary and it ends the visit. A throttle costs twelve seconds of a
+        ten-minute clock, teaches that detection has consequences short of game-over, and —
+        critically — happens while people are watching. It is also the only response that can
+        fire more than once in a run.
+      </p>
+      <p>Two details make it work rather than annoy:</p>
+      <ul class="tight">
+        <li><strong>A throttled attempt does not burn an attempt.</strong> The SOC took the time instead. A player never loses a life to the mechanic.</li>
+        <li><strong>Heat drops 26 points when a throttle fires.</strong> Without that bleed-off the next action re-trips it immediately and the run becomes a slideshow.</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <span class="note-label">The 1.9-second beat</span>
+      <p>
+        The laptop shows <strong>“SOC IS RESPONDING”</strong> for 1.9 seconds before the
+        lockout lands. This is the single most important number in the build. Without it the
+        wall and the laptop fire together and the causal link between them is invisible. With
+        it, the crowd sees the detection appear on the big screen, turns to look at the
+        laptop, and <em>then</em> the takeover happens. Cause, then effect.
+      </p>
+      <p>
+        The same principle governs event ordering server-side: a detection always reaches the
+        wall <strong>before</strong> the escalation it triggered. Getting that backwards was a
+        real bug found during testing, and it destroyed the effect completely.
+      </p>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <h4>It is enforced, not just drawn</h4>
+        <p>
+          The overlay is theatre. The <code>throttled_until</code> timestamp in the Flask
+          session is what means it: while a hold is active,
+          <code>/portal/login</code>, <code>/console/auth</code> and
+          <code>/console/exec</code> refuse outright. Closing the overlay or reloading gains
+          nothing — which matters, because the crowd just watched the SOC act.
+        </p>
+      </div>
+      <div>
+        <h4>It works with the hub off</h4>
+        <p>
+          Heat is computed in the game, in Flask, and the interruption is delivered in the
+          HTTP reply to the action that caused it. The hub only <em>mirrors</em> it to the
+          wall. If the hub is down the defence still works — only the big screen goes quiet.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-tag="F">Running it</h2>
+    <div class="prose">
+      <p>Order does not actually matter — everything reconnects — but this is the least confusing sequence.</p>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <h3>Arena Hub — the machine driving the big screen</h3>
+<pre><span class="c">cd</span> gisec-hub
+node server.js                 <span class="c"># :7788</span></pre>
+        <p>To have the hub also serve the wall and the arcade, so the booth runs one process:</p>
+<pre><span class="c">cd</span> soc-wall-main &amp;&amp; npm install &amp;&amp; npm run build
+<span class="c">cd</span> ../gisec-hub &amp;&amp; node server.js
+<span class="c">#   wall    → http://&lt;hub&gt;:7788/</span>
+<span class="c">#   arcade  → http://&lt;hub&gt;:7788/arcade</span></pre>
+      </li>
+
+      <li>
+        <h3>SOC Wall — big screen, Chrome fullscreen, F11</h3>
+        <p>
+          Edit <code>dist/soc-config.js</code>. It is deliberately unbundled so it can be
+          changed on the show floor with a text editor and a refresh — no rebuild, no
+          toolchain.
+        </p>
+<pre><span class="k">hub</span>: { url: <span class="c">""</span>, sameOrigin: <span class="k">true</span>, port: <span class="k">7788</span> }</pre>
+        <p>
+          Set <code>sameOrigin: true</code> when the hub serves the wall; otherwise set
+          <code>url</code> to the hub's LAN address. Adding
+          <code>?hub=http://10.0.0.5:7788</code> to the wall URL overrides both — the fastest
+          way to repoint the screen mid-show.
+        </p>
+        <p>Launch it with this, not by opening a tab — the flags matter:</p>
+<pre>chromium --kiosk --autoplay-policy=no-user-gesture-required \
+         http://&lt;hub&gt;:<span class="k">7788</span>/</pre>
+        <p>
+          <code>--kiosk</code> removes the tab strip and address bar, which on a 1080p panel
+          were costing the wall about ninety pixels of height.
+          <code>--autoplay-policy=no-user-gesture-required</code> is what makes the alert
+          audio work from boot: a browser will not make a sound until the page has been
+          interacted with, and nobody interacts with a wall display. Without the flag the
+          wall shows a prompt in the corner and one click on the screen arms it for good.
+        </p>
+      </li>
+
+      <li>
+        <h3>Red Team Challenge — both laptops</h3>
+<pre><span class="c">cd</span> DMATICS-Red-Team-Challenge-main
+docker compose up -d --build</pre>
+        <p>
+          <code>HUB_URL</code> in <code>docker-compose.yml</code> must be the hub's
+          <strong>LAN address</strong>, not <code>localhost</code> — this runs inside a
+          container, where localhost is the container.
+        </p>
+        <p>Then open each laptop once at its station URL, which is remembered in the session:</p>
+<pre>Laptop 1 → http://&lt;host&gt;:8000/?station=<span class="k">LAPTOP-01</span>
+Laptop 2 → http://&lt;host&gt;:8000/?station=<span class="k">LAPTOP-02</span></pre>
+        <p>One container can serve both laptops. Two containers also works — set <code>STATION_ID</code> per container.</p>
+      </li>
+
+      <li>
+        <h3>Arcade — iPad</h3>
+<pre>http://&lt;hub&gt;:7788/arcade?hub=http://&lt;hub&gt;:7788</pre>
+        <p>
+          The <code>hub</code> parameter is remembered in the tablet's local storage, so this
+          is a once-per-device setup, not a daily one. Add to Home Screen for fullscreen.
+          <code>?hub=off</code> takes a device off the wall. Hosted on Vercel instead? Set
+          <code>NEXT_PUBLIC_GISEC_HUB</code> and the address is baked into the deploy.
+        </p>
+      </li>
+    </ol>
+
+    <h3>Booth settings</h3>
+    <div class="prose">
+      <p>
+        Three dials live in <code>soc-wall-main/dist/soc-config.js</code>, unbundled so they
+        can be changed on the show floor with a text editor and a refresh.
+      </p>
+      <ul class="tight">
+        <li><code>timezone</code> — every timestamp on the wall reads this zone, so the
+          screen agrees with the clock in the hall. Set to <code>Asia/Dubai</code>.</li>
+        <li><code>globeMotion</code> — <code>true</code> by default. A booth machine with
+          the desktop's reduce-motion setting turned on would otherwise show a dead globe
+          and nobody would know why. <code>"auto"</code> defers to the operating system.</li>
+        <li><code>hub</code> — where the arena hub lives, if it is not serving the wall.</li>
+        <li><code>overscan</code> — <code>1</code> by default, meaning fill the screen edge
+          to edge. Drop it to <code>0.95</code> if the screen at the stand crops the picture.</li>
+        <li><code>sound</code> — <code>volume</code> <span class="num">0.7</span> by default.
+          A loud hall wants <span class="num">0.9</span>, a quiet one
+          <span class="num">0.45</span>. <code>?volume=0.4</code> or <code>?sound=off</code>
+          on the wall URL overrides it for one screen.</li>
+      </ul>
+      <p>
+        The arcade has the same motion override, because an iPad often ships with Reduce
+        Motion on and that blanks its animated background: open it once with
+        <code>?motion=on</code> (the default) or <code>?motion=auto</code> to follow the
+        device. The choice is remembered on the tablet.
+      </p>
+    </div>
+
+    <h3>Any screen, any resolution</h3>
+    <div class="prose">
+      <p>
+        The wall is composed once at <span class="num">1920&times;1080</span> and then scaled
+        as one piece to whatever it is plugged into. Plug it in and it fits — there is
+        nothing to configure, and no resolution it has to be told about.
+      </p>
+      <p>
+        This matters because the alternative does not work. A layout that re-flows to the
+        viewport moves the boxes but not the words inside them, so on a screen it was not
+        tuned for the text walks out of its panel. Scaling the finished surface removes the
+        whole class of problem: there is no re-flow to get wrong, so every screen shows the
+        same wall at a different size.
+      </p>
+      <p>
+        Verified identical — every panel, every gap, every glyph, measured and compared —
+        at <span class="num">1024&times;768</span>, <span class="num">1280&times;1024</span>,
+        <span class="num">1366&times;768</span>, <span class="num">1600&times;900</span>,
+        <span class="num">1920&times;1080</span>, <span class="num">1920&times;1200</span>,
+        <span class="num">2560&times;1080</span>, <span class="num">2560&times;1440</span>,
+        <span class="num">3840&times;2160</span> and in portrait.
+      </p>
+      <p>
+        On a screen that is not 16:9 the wall keeps its shape and the ambient background
+        fills the band above and below it, so it reads as part of the design rather than as
+        a black bar. Two things to know on the day:
+      </p>
+      <ul class="tight">
+        <li>Press <strong>F11</strong>. Chrome's tab strip and address bar eat ~90&nbsp;px of
+          height, and the wall scales down to fit whatever is left — so it is the browser
+          chrome, not the layout, that costs you the most picture.</li>
+        <li>If the screen crops the edges, that is the television's own overscan setting.
+          Turn it off in the TV menu if you can find it (it is usually called
+          "Just Scan", "Screen Fit", "1:1" or "Full Pixel"). If you cannot, add
+          <code>?fit=0.95</code> to the wall URL and the whole surface steps in from the
+          bezel. No rebuild, no file to edit.</li>
+      </ul>
+    </div>
+
+    <h3>The two panels that used to stand still</h3>
+    <div class="prose">
+      <p>
+        The ACTIVE CAMPAIGN card and the DMATICS AI assessment were furniture — a
+        hard-coded "DESERT VIPER · 14 signals · 3 targets · risk 92" and three canned
+        sentences on a timer. Both now read from the same alert stream the globe and the
+        timeline draw from, so the campaign name, class, affected asset, signal count,
+        containment ratio, origin country, confidence ring and the analyst's sentence all
+        move with the traffic.
+      </p>
+      <p>
+        The interesting engineering is in making it move <em>slowly enough</em>. The alert
+        window holds eight items, so "which class is dominant" flips on a difference of one
+        — wired naively the card renamed itself three times a minute, which looks more
+        broken than the frozen version did. The campaign keeps its own ten-minute history
+        and a challenger has to lead by four signals, or lead at all for two minutes, before
+        the card renames. The name holds for minutes; the numbers under it change every few
+        seconds. A booth laptop always outranks the ambient world and takes the card
+        instantly.
+      </p>
+    </div>
+
+    <h3>What the wall sounds like</h3>
+    <div class="prose">
+      <p>
+        Six cues, all synthesised in the browser. There is not a single audio file in the
+        project: nothing to lose off a USB stick, nothing that fails when the stand has no
+        internet, nothing to decode before the first alert can be heard.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Cue</th><th>Fires on</th><th>Sound</th></tr></thead>
+          <tbody>
+            <tr><td class="file">ATTENTION</td><td>severity 8–11 — recon, a shell command, a login</td><td>rising perfect fourth, 659 → 880 Hz</td></tr>
+            <tr><td class="file">ELEVATED</td><td>severity 12–13 — password spraying, credential access</td><td>three notes that do not resolve, 740 → 988 → 831 Hz</td></tr>
+            <tr><td class="file">CRITICAL</td><td>severity 14+ — privilege escalation, exfiltration</td><td>three tritone double-stops, 932 + 1318 Hz</td></tr>
+            <tr><td class="file">KLAXON</td><td>containment executed</td><td>alternating two-tone with a 68 Hz sub swell</td></tr>
+            <tr><td class="file">ALL CLEAR</td><td>station released</td><td>falling triad, 880 → 659 → 523 Hz</td></tr>
+            <tr><td class="file">SCORE</td><td>an arcade score landing on the board</td><td>one sine tick at 1319 Hz, nearly subliminal</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Two rules stop it becoming noise, which is what gets booth audio switched off by
+        lunchtime on day one. <strong>The ambient telemetry is silent</strong> — the wall
+        invents background traffic constantly to keep the globe alive between visitors and
+        none of it is audible, so every sound the stand makes was caused by someone standing
+        in it. And <strong>a burst is one sound</strong>: ordinary cues are held to one every
+        <span class="num">700</span> ms and ten per thirty seconds, so eight detections
+        arriving together produce one chime rather than eight. Critical cues interrupt that,
+        with their own five-second floor.
+      </p>
+      <p>
+        There are twenty-three decibels between the quietest cue and the loudest. A score
+        landing is barely there; a containment is the loudest thing the stand does. Every
+        cue is playable at
+        <a href="https://claude.ai/code/artifact/aa0b2f21-c9fd-41e6-b82d-be48a10a986f">the
+        sound check page</a>, which runs the wall's own audio code — including a button that
+        plays the whole detection-to-containment sequence at booth timing.
+      </p>
+    </div>
+
+    <div class="note note--warn">
+      <span class="note-label">Network</span>
+      <p>
+        Arena Hub <span class="num">7788</span> · Red Team Challenge
+        <span class="num">8000</span> · SOC Wall dev server <span class="num">5173</span>.
+        All three laptops, the iPad and the screen must be on the same LAN. No internet is
+        required for any of it.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-tag="G">What changed in each project</h2>
+    <div class="prose">
+      <p>
+        The arcade and the challenge kept every existing code path. The wall was
+        re-proportioned: it is now an even split, SOC monitoring on top and the arena
+        below, with the type scale roughly doubled at the small end so it reads across a
+        hall rather than from a desk.
+      </p>
+    </div>
+
+    <h3>soc-wall-main</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>File</th><th></th><th>What</th></tr></thead>
+        <tbody>
+          <tr><td class="file">js/hub.js</td><td><span class="chip chip--new">New</span></td><td>SSE client — own reconnect with backoff, snapshot handshake</td></tr>
+          <tr><td class="file">js/arena.js</td><td><span class="chip chip--new">New</span></td><td>The leaderboard panel, auto-rotating across five boards</td></tr>
+          <tr><td class="file">js/fit.js</td><td><span class="chip chip--new">New</span></td><td>Scales the fixed 1920&times;1080 surface to any screen</td></tr>
+          <tr><td class="file">js/audio.js</td><td><span class="chip chip--new">New</span></td><td>The six alert cues, synthesised — no audio files, rate limited</td></tr>
+          <tr><td class="file">js/campaign.js</td><td><span class="chip chip--new">New</span></td><td>Derives the ACTIVE CAMPAIGN card and the AI assessment from the live alert stream</td></tr>
+          <tr><td class="file">js/response.js</td><td><span class="chip chip--new">New</span></td><td>Live operation card, response band, station posture</td></tr>
+          <tr><td class="file">public/soc-config.js</td><td><span class="chip chip--new">New</span></td><td>Unbundled booth config</td></tr>
+          <tr><td class="file">index.html</td><td><span class="chip chip--edit">Edited</span></td><td>Health panel → arena panel; ids for live fields</td></tr>
+          <tr><td class="file">js/main.js</td><td><span class="chip chip--edit">Edited</span></td><td>Hub wiring; arena and response surfaces</td></tr>
+          <tr><td class="file">js/ai.js</td><td><span class="chip chip--edit">Edited</span></td><td><code>speak()</code> — a real detection interrupts the scripted assessment</td></tr>
+          <tr><td class="file">js/health.js</td><td><span class="chip chip--edit">Edited</span></td><td>No-ops when its list element is absent</td></tr>
+          <tr><td class="file">css/layout.css</td><td><span class="chip chip--edit">Edited</span></td><td>Arena / heat-bar / response-band styles; fixed design surface, breakpoints retired</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <span class="note-label">What was removed, and why</span>
+      <p>
+        Three panels gave up their space so the arena could have half the screen and the
+        rest could grow: <strong>infrastructure health</strong> (six invented services),
+        the <strong>classification heatmap</strong>, and <strong>threat intelligence</strong>
+        — whose feed still runs across the ticker at the bottom, so nothing was actually
+        lost. All three still poll; they simply have nowhere to draw, and restoring any of
+        them is a matter of putting the markup back.
+      </p>
+      <p>
+        Every third-party product name went with them — from the panels, the investigation
+        dialogs, the intelligence feed, the config file and the hub. The four data feeds are
+        now named for what they do: <code>SENSORS</code>, <code>TICKETS</code>,
+        <code>INTEL</code>, <code>NETWORK</code>.
+      </p>
+    </div>
+
+    <h3>DMATICS-Red-Team-Challenge-main</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>File</th><th></th><th>What</th></tr></thead>
+        <tbody>
+          <tr><td class="file">hub.py</td><td><span class="chip chip--new">New</span></td><td>Queued, daemon-threaded emitter — never blocks, never raises</td></tr>
+          <tr><td class="file">static/js/hubwatch.js</td><td><span class="chip chip--new">New</span></td><td>Heat meter, advisory, hold overlay, operator channel</td></tr>
+          <tr><td class="file">app.py</td><td><span class="chip chip--edit">Edited</span></td><td>Heat engine, station identity, emitters, server-side hold enforcement</td></tr>
+          <tr><td class="file">templates/base.html</td><td><span class="chip chip--edit">Edited</span></td><td>Heat meter in the nav, <code>hubwatch.js</code>, session globals</td></tr>
+          <tr><td class="file">templates/brief · console · login</td><td><span class="chip chip--edit">Edited</span></td><td>Route SOC responses through <code>SOCDEF.apply()</code></td></tr>
+          <tr><td class="file">static/css/style.css</td><td><span class="chip chip--edit">Edited</span></td><td>Appended heat meter / advisory / hold-overlay styles</td></tr>
+          <tr><td class="file">docker-compose.yml</td><td><span class="chip chip--edit">Edited</span></td><td>Hub address, station ids, defence tuning</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>dmatics-cyber-arcade-main</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>File</th><th></th><th>What</th></tr></thead>
+        <tbody>
+          <tr><td class="file">public/game.html</td><td><span class="chip chip--edit">Edited</span></td><td><code>HUB</code> bridge (~40 lines) plus two call sites, in <code>begin()</code> and <code>saveScore()</code>; motion override; inline SVG icon set replacing the emoji in the interface chrome; audio arms itself on load rather than only on the first tap</td></tr>
+          <tr><td class="file">app/page.js</td><td><span class="chip chip--edit">Edited</span></td><td>Forwards <code>?hub=</code> into the iframe, which cannot see the page's query string</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p>
+        The localStorage board and the <code>/api/scores</code> server board are untouched and
+        still authoritative for everything the arcade shows on screen. The hub is a third
+        destination.
+      </p>
+      <p>
+        The emoji in the buttons, the nav chips and the Hall of Fame are now drawn as inline
+        SVG. Emoji belong to the platform rather than to us: the same character is a flat
+        outline in Chrome on the rehearsal laptop and a glossy Apple illustration on the
+        iPad, which is the device this actually runs on. The medals on the leaderboard became
+        numbered rank chips, matching the wall — the two screens now count places the same
+        way. The emoji inside the games themselves are left alone on purpose: the asset tiles
+        in Breach Point are illustrations and should look like illustrations.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-tag="H">The arena board</h2>
+    <div class="prose">
+      <p>
+        Five boards rotating every nine seconds with a progress sweep:
+        <strong>OVERALL · PHISH · ALERTS · BREACH · RED OPS</strong>. A wall has nobody
+        standing at it to click tabs, and the rotation is what makes a visitor stop and wait
+        for their own game to come round. Booth staff can still tap a tab to hold one for a
+        full cycle. A score that lands jumps to that board and pulses the row once, so a
+        player watching from the stand sees their own name arrive.
+      </p>
+    </div>
+    <div class="note">
+      <span class="note-label">The overall board is not a points total</span>
+      <p>
+        Red Team maxes at 100; Breach Point can pass 2,000. Summing them would make the arcade
+        the only game that mattered. Each game is normalised to
+        <span class="num">1,000</span> points at that game's current top score — so
+        being best-in-class counts the same everywhere, and playing more games beats grinding
+        one. That is the right incentive for a stand: it moves people between the iPad and the
+        laptops.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-tag="I">When something breaks</h2>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>If this happens</th><th>What the visitor sees</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>Hub process dies</td><td>Games play normally; wall keeps ambient telemetry, board freezes</td><td>Restart it — the wall reconnects on its own, scores are on disk</td></tr>
+          <tr><td>Wall loses the hub</td><td><code>ARENA LINKED</code> pill returns to <code>DEMO TELEMETRY LINKED</code></td><td>Nothing. It retries with backoff</td></tr>
+          <tr><td>Wall restarted mid-day</td><td>Board and stations repopulate instantly from the hub snapshot</td><td>Nothing</td></tr>
+          <tr><td>Booth Wi-Fi blips</td><td>A telemetry event or two is dropped, never retried</td><td>Nothing — retrying would stall a player's request</td></tr>
+          <tr><td>A laptop can't reach the hub</td><td>That laptop plays fine, nothing appears on the wall</td><td>Check <code>HUB_URL</code> is the LAN address, not <code>localhost</code></td></tr>
+          <tr><td>Both laptops show one station</td><td>Two operators overwrite each other on the wall</td><td>Reopen the second with <code>?station=LAPTOP-02</code></td></tr>
+          <tr><td>Board full of test scores</td><td>—</td><td><code>POST /api/admin/reset</code> with the token</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Health checks</h3>
+<pre>curl http://&lt;hub&gt;:7788/api/health      <span class="c"># clients, stations, event totals</span>
+curl http://&lt;host&gt;:8000/health         <span class="c"># includes hub emitter sent/failed/dropped</span></pre>
+    <div class="prose">
+      <p><code>sent</code> climbing and <code>failed</code> at zero means the laptop is reaching the hub.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-tag="J">Change these before the show</h2>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Where</th><th>What</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><code>.env</code> (red team)</td><td><code>SECRET_KEY</code></td><td>Copy <code>.env.example</code> and run <code>openssl rand -hex 32</code>. Compose refuses to start without it. Set it even for a native run: without it <code>serve.py</code> drops to a single worker, because two workers each inventing their own key log players out at random</td></tr>
+          <tr><td><code>docker-compose.yml</code></td><td><code>HUB_URL</code></td><td>Currently a placeholder LAN address</td></tr>
+          <tr><td>Hub environment</td><td><code>ADMIN_TOKEN</code></td><td>No default. Unset, <code>/api/admin/reset</code> refuses every request and says so</td></tr>
+          <tr><td>Arcade</td><td><code>ADMIN_USER</code> / <code>ADMIN_PASSWORD</code></td><td>No default. Unset, the leaderboard reset returns 503</td></tr>
+          <tr><td>Before pushing</td><td><code>./push-to-github.sh</code></td><td>Scans the tree, any unignored <code>.env</code>, and every commit in history — and refuses on a hit</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Tuning on the day</h3>
+    <div class="prose">
+      <p>All in <code>docker-compose.yml</code>, no rebuild:</p>
+      <ul class="tight">
+        <li><strong>Queue is long, move people through</strong> — <code>HEAT_DECAY=1.4</code>, <code>THROTTLE_SECONDS=8</code></li>
+        <li><strong>Quiet spell, want the drama</strong> — <code>HEAT_THROTTLE=45</code></li>
+        <li><strong>A VIP demo you do not want interrupted</strong> — <code>HEAT_THROTTLE=200</code></li>
+      </ul>
+      <p>
+        The wall's ambient telemetry is <code>demo: true</code> in
+        <code>soc-config.js</code>. Leave it on — booth activity arrives through the hub
+        either way, and the ambient traffic is what keeps the globe alive between visitors.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-tag="K">Show-day checklist</h2>
+
+    <h3>Morning</h3>
+    <ul class="checklist" id="check-am">
+      <li><label><input type="checkbox" data-key="am1"><span>Hub up — <code>/api/health</code> answers</span></label></li>
+      <li><label><input type="checkbox" data-key="am2"><span>Wall fullscreen, pill reads <strong>ARENA LINKED · 4 GAMES</strong></span></label></li>
+      <li><label><input type="checkbox" data-key="am3"><span>Both laptops opened with their <code>?station=</code> parameter</span></label></li>
+      <li><label><input type="checkbox" data-key="am4"><span>iPad opened with its <code>hub</code> parameter, added to Home Screen</span></label></li>
+      <li><label><input type="checkbox" data-key="am5"><span>One test run per station — confirm it reaches the wall</span></label></li>
+      <li><label><input type="checkbox" data-key="am6"><span>Clear the test scores</span></label></li>
+      <li><label><input type="checkbox" data-key="am7"><span>Everything on mains, screens set to never sleep</span></label></li>
+    </ul>
+
+    <div class="note note--signal">
+      <span class="note-label">One rehearsal worth doing</span>
+      <p>
+        Have someone deliberately fail three passwords on Laptop&nbsp;02 while a colleague
+        watches the wall. If they see the detection <strong>before</strong> the laptop locks,
+        the show works. That is the whole thing.
+      </p>
+    </div>
+
+    <h3>Close of day</h3>
+    <ul class="checklist" id="check-pm">
+      <li><label><input type="checkbox" data-key="pm1"><span>Screenshot the overall board for the trophy</span></label></li>
+      <li><label><input type="checkbox" data-key="pm2"><span><code>POST /api/admin/reset</code> for tomorrow</span></label></li>
+      <li><label><input type="checkbox" data-key="pm3"><span><code>data/arena.json</code> is the day's record if you want it</span></label></li>
+    </ul>
+    <button class="check-reset" type="button" id="reset-checks">Reset checklist</button>
+  </section>
+
+  <section>
+    <h2 data-tag="L">The audit</h2>
+    <div class="prose">
+      <p>
+        Every file was read line by line and each finding reproduced before it was
+        fixed. What follows is the part that changes how the booth behaves — not the
+        whole list, but the entries a person standing at the stand would notice.
+      </p>
+    </div>
+
+    <h3>Things that would have gone wrong on the day</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>What</th><th>What you would have seen</th></tr></thead>
+        <tbody>
+          <tr><td><code>run-local.sh</code> referenced an undefined <code>$D</code> under <code>set -u</code></td><td>The Linux launcher aborted at the exact moment it prints the LAN addresses for the iPad</td></tr>
+          <tr><td>The challenge's logo file did not exist</td><td>A broken-image icon where the company wordmark goes, on every page of both laptops</td></tr>
+          <tr><td>The rehearsal never read a single reply</td><td>Five green ticks and "Full compromise" whatever the server said. It now checks every step and exits non-zero</td></tr>
+          <tr><td>The rehearsal waited on <code>throttle_left</code>; the app sends <code>throttleLeft</code></td><td>Every held request fired straight into the throttle. The one mechanic the rehearsal exists to demonstrate never ran</td></tr>
+          <tr><td>The "noisy operator finishes" preset was contained every time</td><td>A failed rehearsal on a perfectly healthy booth, every morning</td></tr>
+          <tr><td>The threat badge could not reach <code>GUARDED</code></td><td>The wall read <code>ELEVATED</code> from boot whether the stand was empty or a red team was three flags deep. It now walks GUARDED → ELEVATED → SEVERE as a run develops</td></tr>
+          <tr><td>Arcade board read the newest 200 rows</td><td>Day one's top score deleted on day two. Reproduced with one 9,999 and 250 later plays. Now an all-time sorted set</td></tr>
+          <tr><td><code>docker compose up -d</code> survived Ctrl-C</td><td>Yesterday's container still on :8000, and tomorrow's launch quietly talking to it</td></tr>
+          <tr><td>Shutdown wrote <code>arena.json</code> non-atomically</td><td>On Windows, <code>taskkill /F</code> landing mid-write leaves a zero-length file, and the whole show's leaderboard is discarded as unreadable on the next start</td></tr>
+          <tr><td>Closing the console window sent SIGHUP, which nothing handled</td><td>Ending the day by clicking the X instead of pressing Ctrl-C skipped every flush and every cleanup</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Security</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>What</th><th>Why it mattered</th></tr></thead>
+        <tbody>
+          <tr><td><code>?hub=</code> accepted any host, and the arcade persisted it</td><td>A QR code with <code>?hub=https://somewhere-else</code> and one tap redirected every player's name and score to a stranger, permanently, with nothing on screen changing. Both surfaces now accept only booth-LAN addresses</td></tr>
+          <tr><td>No security headers anywhere</td><td>The hub and the arcade now send a CSP shaped to what each page actually is, plus nosniff, Referrer-Policy, X-Frame-Options and Permissions-Policy. Verified in a browser: no violations, nothing broken</td></tr>
+          <tr><td>Unauthenticated score POST with a 100,000 ceiling</td><td><code>{"score": 99999}</code> from curl sat permanently at the top of the board. Ceiling is now 20,000 — far above real play — with a per-device write budget</td></tr>
+          <tr><td>Admin compare returned early on a length mismatch</td><td>The comment said constant-time; the first line was a length oracle. Both sides are now hashed and compared with <code>timingSafeEqual</code></td></tr>
+          <tr><td><code>COPY . .</code> in the Dockerfile</td><td>The operator's real <code>SECRET_KEY</code> baked into an image layer that survives every <code>docker save</code> and <code>docker history</code>. <code>.dockerignore</code> added</td></tr>
+          <tr><td>A port from the environment reached <code>eval</code> under sudo in <code>network-check.sh</code></td><td><code>HUB_PORT='7788; …'</code> ran as root. Ports are validated as numbers before they reach a command string</td></tr>
+          <tr><td>The credential scanner skipped <code>.mjs</code>, <code>.cmd</code>, <code>.ts</code> and all of history</td><td>It scanned an extension allowlist that happened to exclude the launcher and the whole arcade. It now scans everything, plus every commit — and it immediately found a placeholder key in the one existing commit, which has been rewritten away</td></tr>
+          <tr><td>On Windows, <code>/files/..\app.py</code> passed the existence check and charged heat before being refused</td><td>Nine backslash probes and a visitor was contained for fuzzing a route the booth invites them to fuzz. Nothing was ever disclosed. The guard now uses the same <code>safe_join</code> that serves the file</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>What was verified, not just changed</h3>
+    <div class="prose">
+      <ul class="tight">
+        <li><strong>Ten resolutions</strong>, 1024×768 to 4K and both portrait sizes — correct scale factor, surface inside the viewport, no page overflow, no clipped text.</li>
+        <li><strong>All four rehearsal presets</strong> against a live hub and challenge: clean finishes, noisy finishes after cooling off, bust reaches containment, arcade fills the boards.</li>
+        <li><strong>The full show</strong> with a browser watching the wall: GUARDED → ELEVATED → SEVERE, the response band walking advisory → throttle → contained, the station going red, and the run landing on the RED OPS board.</li>
+        <li><strong>The arcade in a browser</strong> — a complete 60-second round under the new CSP with no console errors, and seventeen hub-address cases including the exfiltration vector and the Vercel fallback.</li>
+        <li><strong>Two gunicorn workers</strong> sharing a session across twelve requests with a key set, and exactly one worker without.</li>
+        <li><strong>The wall with its font host blocked</strong>, which is the GISEC-with-no-internet case. It renders in the local stacks and looks deliberate.</li>
+      </ul>
+      <p>
+        The Windows paths could not be executed here. They were reviewed line by line
+        instead, and eleven Windows-only defects were found and fixed — the shutdown
+        race, the unhandled close-window signal, a <code>docker.cmd</code> that does not
+        exist, a container-only database path that would have written to
+        <code>C:\app\data</code>, an arrow character that crashes a redirected log, and
+        the rest. They are listed above where they matter.
+      </p>
+    </div>
+  </section>
+
+  <div class="footer">
+    <span>DMATICS IT Solutions LLC · Dubai</span>
+    <span>GISEC 2026 · Arena Hub v1.0</span>
+  </div>
+</div>
+
+<script>
+/* The checklist is the one thing on this page people actually operate, on a phone,
+   in a loud hall. Remembering ticks per device makes it usable across a morning
+   setup; storage is per-viewer and may be unavailable, so every access is guarded. */
+(function () {
+  var KEY = "gisec-runbook-checks";
+  var boxes = document.querySelectorAll(".checklist input[type=checkbox]");
+
+  function read() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
+  }
+  function write(state) {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* private window */ }
+  }
+
+  var state = read();
+  boxes.forEach(function (box) {
+    box.checked = !!state[box.dataset.key];
+    box.addEventListener("change", function () {
+      var next = read();
+      next[box.dataset.key] = box.checked;
+      write(next);
+    });
+  });
+
+  document.getElementById("reset-checks").addEventListener("click", function () {
+    boxes.forEach(function (box) { box.checked = false; });
+    write({});
+  });
+})();
+</script>

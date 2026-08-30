@@ -1,0 +1,44 @@
+services:
+  dmatics-redteam:
+    build: .
+    container_name: dmatics-redteam
+    ports:
+      - "8000:8000"          # players + leaderboard  ->  http://<booth-host>:8000
+    environment:
+      # Read from .env — copy .env.example to .env and put a long random string
+      # in it (`openssl rand -hex 32`). It is not committed, and compose refuses
+      # to start without it rather than shipping a key that anyone with the
+      # repository already knows. Both gunicorn workers must share one key or
+      # sessions break, which is why it cannot simply be left unset.
+      - SECRET_KEY=${SECRET_KEY:?set SECRET_KEY in .env — see .env.example}
+      - DB_PATH=/app/data/leaderboard.db
+      - GAME_SECONDS=600     # length of a run in seconds (10 min)
+
+      # --- GISEC Arena Hub -----------------------------------------------
+      # Where the SOC Wall gets its live telemetry and the shared leaderboard.
+      # Use the hub machine's LAN address, NOT localhost — this is inside a
+      # container, so localhost is the container itself.
+      # Leave it blank and the challenge runs exactly as it always has, with
+      # nothing appearing on the big screen.
+      - HUB_URL=${HUB_URL:-}
+      # Must match ADMIN_TOKEN on the hub, or leave both blank.
+      - HUB_TOKEN=${HUB_TOKEN:-}
+
+      # Default station id when a browser has not been given one with
+      # ?station=LAPTOP-02 on the landing page. One container can serve both
+      # laptops; the id is stored per browser session.
+      - STATION_ID=LAPTOP-01
+      - STATIONS=LAPTOP-01,LAPTOP-02
+
+      # --- SOC defence tuning ---------------------------------------------
+      # Heat rises with noisy actions and decays while the player is careful.
+      # Lower HEAT_THROTTLE for a harder, more theatrical run; raise it if the
+      # queue is long and you want visitors through faster.
+      - HEAT_DECAY=0.9         # heat points shed per second
+      - HEAT_WATCH=34          # "the SOC has noticed you" banner
+      - HEAT_THROTTLE=62       # session held for inspection
+      - HEAT_CONTAIN=96        # run over
+      - THROTTLE_SECONDS=12    # length of a hold
+    volumes:
+      - ./data:/app/data      # keeps the leaderboard across restarts
+    restart: unless-stopped

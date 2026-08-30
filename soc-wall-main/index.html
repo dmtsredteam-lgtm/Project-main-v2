@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#03070d" />
+    <meta name="description" content="DMATICS SOC Wall — live threat telemetry and the GISEC arena leaderboard." />
+    <meta property="og:title" content="DMATICS SOC — Cyber Defence Command" />
+    <meta property="og:description" content="Live threat telemetry, attack paths, intelligence and the GISEC 2026 arena leaderboard in one command surface." />
+    <meta property="og:image" content="/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Typography is an enhancement, never a dependency. A stylesheet <link> is
+         render-blocking: on a stand whose wifi resolves DNS but drops the
+         connection, the wall would sit on a blank screen until the request timed
+         out. media="print" + onload flips it to a non-blocking fetch that upgrades
+         the type when (and only if) it arrives; the <noscript> keeps it working
+         for anything without script. The local fallback stacks in theme.css are
+         what the wall actually renders with offline. -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Oxanium:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet" media="print" data-font-link />
+    <noscript><link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Oxanium:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" /></noscript>
+    <title>DMATICS SOC — Cyber Defence Command</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#command-center">Skip to command center</a>
+    <canvas id="ambient-canvas" aria-hidden="true"></canvas>
+    <div class="ambient-grid" aria-hidden="true"></div>
+
+    <main id="command-center" class="command-shell">
+      <header class="topbar glass-panel" aria-label="SOC status header">
+        <div class="brand-lockup">
+          <img class="brand-logo" src="/dmatics.png" alt="DMATICS IT Solutions" />
+          <div>
+            <strong>DMATICS <span>// SOC</span></strong>
+            <small>CYBER DEFENCE COMMAND · NODE DXB-01</small>
+          </div>
+        </div>
+
+        <div class="topbar-center" aria-label="Threat state">
+          <div class="status-orb is-warning" id="threat-orb"><span></span></div>
+          <div>
+            <small>GLOBAL THREAT CONDITION</small>
+            <strong id="threat-level">ELEVATED</strong>
+          </div>
+          <div class="telemetry-line" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+        </div>
+
+        <div class="system-meta">
+          <div class="source-statuses" aria-label="Data source freshness">
+            <span><i></i>SENSORS <b>0.4s</b></span><span><i></i>TICKETS <b>9s</b></span><span><i></i>INTEL <b>12s</b></span><span><i></i>NETWORK <b>18s</b></span>
+          </div>
+          <div class="connection-pill"><i></i><span>ALL SYSTEMS LINKED</span></div>
+          <div class="clock-block">
+            <strong id="utc-clock">00:00:00</strong>
+            <small id="utc-date">22 AUG 2026 · GST</small>
+          </div>
+        </div>
+      </header>
+
+      <section class="left-rail" aria-label="Primary security metrics">
+        <article class="metric-card glass-panel critical-accent">
+          <div class="metric-top"><span>CRITICAL ALERTS</span><span class="live-tag">LIVE</span></div>
+          <div class="metric-value"><strong id="metric-critical">18</strong><span>+12.8%</span></div>
+          <canvas class="sparkline" id="spark-critical" width="240" height="44" aria-label="Critical alert trend"></canvas>
+          <div class="metric-context"><span><small>L15</small><b id="critical-l15">04</b></span><span><small>L14</small><b id="critical-l14">06</b></span><span><small>L13</small><b id="critical-l13">08</b></span></div>
+          <p><b id="critical-investigating">05 investigating</b> / <span id="critical-contained">13 contained</span> / <b id="critical-updated">just now</b></p>
+        </article>
+
+        <article class="metric-card glass-panel cyan-accent">
+          <div class="metric-top"><span>EVENTS / SECOND</span><span>INGEST</span></div>
+          <div class="metric-value"><strong id="metric-eps">1,284</strong><span class="good">+3.2%</span></div>
+          <canvas class="sparkline" id="spark-eps" width="240" height="44" aria-label="Event ingestion trend"></canvas>
+          <div class="metric-context"><span><small>AVG</small><b id="eps-average">1,246</b></span><span><small>PEAK</small><b id="eps-peak">1,552</b></span><span><small>DROPPED</small><b class="good">0</b></span></div>
+          <p><b class="good">MGR-01 UP</b> / <b class="good">MGR-02 UP</b></p>
+        </article>
+
+        <article class="metric-card glass-panel purple-accent">
+          <div class="metric-top"><span>OPEN TICKETS</span><span>SERVICE DESK</span></div>
+          <div class="metric-value"><strong id="metric-tickets">42</strong><span>6 due</span></div>
+          <div class="priority-bars" aria-label="Tickets by priority">
+            <span style="--fill: 86%"><i>P1</i><b id="ticket-p1">03</b></span>
+            <span style="--fill: 62%"><i>P2</i><b id="ticket-p2">14</b></span>
+            <span style="--fill: 38%"><i>P3</i><b id="ticket-p3">25</b></span>
+          </div>
+          <div class="metric-context compact"><span><small>BREACHED</small><b class="hot" id="ticket-breached">01</b></span><span><small>SLA RISK</small><b class="warning" id="ticket-risk">06</b></span><span><small>OWNER</small><b>SOC</b></span></div>
+        </article>
+
+        <article class="metric-card glass-panel emerald-accent">
+          <div class="metric-top"><span>SENSOR COVERAGE</span><span>ENDPOINTS</span></div>
+          <div class="metric-value"><strong id="metric-agents">418</strong><span class="good">99.5%</span></div>
+          <div class="coverage-ring" style="--progress: 99.5%"><span>02</span><small>DOWN</small></div>
+          <div class="metric-context"><span><small>ONLINE</small><b id="agent-online">418</b></span><span><small>STALE</small><b class="warning">01</b></span><span><small>GROUPS</small><b>12/12</b></span></div>
+          <p>02 offline / <b class="good">last check-in 4s</b></p>
+        </article>
+      </section>
+
+      <section class="hero glass-panel" aria-label="Global live attack visualization">
+        <div class="hero-heading">
+          <div>
+            <span class="eyebrow"><i></i> LIVE ATTACK SURFACE</span>
+            <h1>GLOBAL THREAT VECTOR</h1>
+          </div>
+          <div class="hero-stats">
+            <span><small>ACTIVE VECTORS</small><b id="active-vectors">26</b></span>
+            <span><small>COUNTRIES</small><b id="observed-countries">12</b></span>
+            <span><small>EVENTS / 15 MIN</small><b id="window-events">247</b></span>
+            <span><small>BLOCK RATE</small><b>98.7%</b></span>
+          </div>
+        </div>
+        <div id="globe-stage" role="img" aria-label="Animated globe showing cyber attack paths converging on the protected perimeter"></div>
+        <div class="radar-hud" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="globe-crosshair" aria-hidden="true"><span></span></div>
+
+        <div class="origin-panel glass-inset">
+          <div class="section-label"><span>TOP ORIGINS</span><b>15 MIN</b></div>
+          <div id="origin-list" class="origin-list"></div>
+        </div>
+
+        <div class="operation-card glass-inset" id="operation-card">
+          <span id="op-eyebrow">ACTIVE CAMPAIGN</span>
+          <strong id="op-title">DESERT VIPER</strong>
+          <p id="op-line">Credential access / cloud identity</p>
+          <div><i></i><span id="op-signals">14 signals / 3 targets / risk 92</span></div>
+          <small id="op-foot">CREDENTIAL ACCESS · CONTAINED 1/2</small>
+          <i class="op-heat" id="op-heat" aria-hidden="true"></i>
+        </div>
+
+        <div class="globe-status">
+          <span><i class="cyan-dot"></i> OBSERVED</span>
+          <span><i class="red-dot"></i> CRITICAL</span>
+          <span><i class="purple-dot"></i> CORRELATED</span>
+        </div>
+
+        <div class="globe-controls" aria-label="Globe controls">
+          <button type="button" data-globe-action="zoom-in" aria-label="Zoom in">+</button>
+          <button type="button" data-globe-action="zoom-out" aria-label="Zoom out">−</button>
+          <button type="button" data-globe-action="reset" aria-label="Reset globe view">⌂</button>
+        </div>
+
+        <div id="geo-readout" class="geo-readout glass-inset" aria-live="polite">
+          <span>GEOSPATIAL INSPECTOR</span>
+          <strong id="geo-country">SELECT A COUNTRY OR ATTACK POINT</strong>
+          <div><b id="geo-latitude">LAT —</b><b id="geo-longitude">LON —</b></div>
+          <div class="geo-meta-grid"><span>HOST <b id="geo-host">—</b></span><span>CLASS <b id="geo-class">—</b></span><span>LEVEL <b id="geo-level">—</b></span><span>RISK <b id="geo-risk">—</b></span><span>STATUS <b id="geo-status">READY</b></span></div>
+          <small id="geo-detail">Wheel or pinch to zoom · drag to rotate</small>
+        </div>
+      </section>
+
+      <aside class="right-rail" aria-label="Security intelligence and assistant">
+        <section class="ai-panel glass-panel">
+          <div class="panel-heading">
+            <div><span class="ai-glyph">D</span><div><strong>DMATICS AI</strong><small>SECURITY ANALYST · ACTIVE</small></div></div>
+            <span class="confidence-ring" id="ai-ring" style="--score: 92" title="Assessment confidence"><b id="ai-score">92</b></span>
+          </div>
+          <div class="ai-summary">
+            <span>CURRENT ASSESSMENT</span>
+            <p id="ai-typing" aria-live="polite"></p><i class="typing-cursor"></i>
+          </div>
+          <dl class="ai-facts">
+            <div><dt>Campaign</dt><dd id="ai-campaign">DESERT VIPER</dd></div>
+            <div><dt>Class</dt><dd id="ai-technique">CREDENTIAL ACCESS</dd></div>
+            <div><dt>Affected</dt><dd id="ai-affected">FINANCE-IDP</dd></div>
+            <div><dt>Confidence</dt><dd id="ai-confidence" class="good">HIGH · 92%</dd></div>
+            <div><dt>Signals</dt><dd id="ai-signals">14 / 4 SOURCES</dd></div>
+            <div><dt>Last event</dt><dd id="ai-last-event">00:00:00 UTC</dd></div>
+          </dl>
+          <div class="ai-action"><span>RECOMMENDED ACTION</span><p>Enforce step-up authentication and isolate the anomalous session on <b>FIN-WS-112</b>.</p></div>
+        </section>
+
+        <section class="timeline-panel glass-panel">
+          <div class="panel-title"><div><span>THREAT TIMELINE</span><small>CORRELATED INCIDENTS</small></div><b id="timeline-count">08</b></div>
+          <div id="threat-timeline" class="threat-timeline"></div>
+        </section>
+      </aside>
+
+      <!-- GISEC ARENA — every booth board, always on screen.
+           Occupies the whole lower deck. Rotating one board at a time meant
+           three of the four games were invisible at any moment; a visitor
+           should be able to find their game without waiting for it. -->
+      <section class="lower-deck" aria-label="GISEC arena live leaderboards">
+        <section class="arena-panel glass-panel">
+          <div class="arena-head">
+            <div class="arena-title">
+              <span>GISEC ARENA</span>
+              <small>DMATICS CYBER GAMES · LIVE STANDINGS</small>
+            </div>
+            <div class="arena-head-stats">
+              <span><small>PLAYERS</small><b id="arena-players">00</b></span>
+              <span class="arena-activity" id="arena-runs">00 RUNS</span>
+              <i class="arena-live" aria-hidden="true"></i>
+            </div>
+          </div>
+          <div id="arena-board" class="arena-board" aria-live="polite"></div>
+          <div class="arena-footer">
+            <div id="arena-stations" class="arena-stations"></div>
+            <span class="arena-brand">DMATICS IT SOLUTIONS · DUBAI</span>
+          </div>
+        </section>
+      </section>
+
+      <footer class="ticker-bar glass-panel" aria-label="Live threat intelligence ticker">
+        <div class="ticker-label"><i></i><span>INTEL STREAM</span></div>
+        <div class="ticker-window"><div id="ticker-track" class="ticker-track"></div></div>
+        <div class="ticker-clock"><span id="feed-latency">0.8s</span> SYNC · 5 FEEDS</div>
+      </footer>
+    </main>
+
+    <div id="detail-layer" class="detail-layer" hidden>
+      <div class="detail-backdrop" data-detail-close></div>
+      <section id="detail-dialog" class="detail-dialog glass-panel" role="dialog" aria-modal="true" aria-labelledby="detail-title" tabindex="-1">
+        <div class="detail-scan" aria-hidden="true"></div>
+        <header class="detail-header">
+          <div>
+            <span id="detail-eyebrow">INVESTIGATION VIEW</span>
+            <h2 id="detail-title">Security detail</h2>
+            <p id="detail-subtitle"></p>
+          </div>
+          <div class="detail-header-actions">
+            <span id="detail-status" class="detail-status">ACTIVE</span>
+            <button type="button" data-detail-close aria-label="Close detail view">&times;</button>
+          </div>
+        </header>
+        <div id="detail-metrics" class="detail-metrics"></div>
+        <div id="detail-content" class="detail-content"></div>
+        <footer class="detail-footer">
+          <div><i></i><span id="detail-source">DMATICS CORRELATION ENGINE</span></div>
+          <p id="detail-recommendation"></p>
+        </footer>
+      </section>
+    </div>
+
+    <!-- Emergency state. Sits above the panels and below the investigation
+         dialog; driven by js/response.js when a booth detection lands. -->
+    <div class="alarm-layer" id="alarm-layer" aria-hidden="true">
+      <i class="alarm-edge alarm-edge-top"></i>
+      <i class="alarm-edge alarm-edge-bottom"></i>
+      <i class="alarm-vignette"></i>
+    </div>
+
+    <div id="motion-status" class="sr-only" aria-live="polite"></div>
+    <!-- Booth configuration, deliberately unbundled so it can be edited on the
+         show floor and picked up with a refresh. Must load before the module. -->
+    <script src="/soc-config.js"></script>
+    <script type="module" src="/js/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+# Normalise line endings so a Windows clone gets working files.
+* text=auto eol=lf
+
+# Windows needs CRLF in batch files or cmd mis-parses them.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Never let git rewrite bytes inside these.
+*.png binary
+*.jpg binary
+*.wav binary
+*.woff2 binary

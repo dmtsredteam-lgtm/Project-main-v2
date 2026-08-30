@@ -1,0 +1,11 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  /* Allow vertical scrolling on pages while keeping layout stable */
+  overflow: auto;
+  background: #0a0713;
+  overscroll-behavior: contain;
+}
+* { box-sizing: border-box; }

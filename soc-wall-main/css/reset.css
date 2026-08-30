@@ -1,0 +1,11 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; min-width: 320px; min-height: 100%; }
+body { overflow: hidden; }
+button, input, textarea, select { font: inherit; }
+canvas { display: block; }
+h1, h2, h3, p, dl, dd { margin: 0; }
+ul { margin: 0; padding: 0; list-style: none; }
+.skip-link { position: fixed; left: 1rem; top: -4rem; z-index: 100; padding: .8rem 1rem; background: #e8fbff; color: #02070e; border-radius: .4rem; }
+.skip-link:focus { top: 1rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+

@@ -1,0 +1,729 @@
+<title>SOC Alert Sound Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+/* ---------------------------------------------------------------------------
+   A control-room instrument, not a document. Single theme on purpose: this is
+   a piece of equipment for a dark stand, and a light variant of it would be a
+   different object. Every colour is painted explicitly so the page holds its
+   own ground whichever theme the viewer is in.
+   ------------------------------------------------------------------------- */
+:root {
+  --ink:       #070c12;   /* blue-biased near-black, one step up from the wall */
+  --panel:     #0d1620;
+  --panel-2:   #111e2b;
+  --rule:      rgba(122, 190, 216, .15);
+  --rule-hot:  rgba(122, 190, 216, .34);
+  --text:      #e9f4fa;
+  --soft:      #b3c8d5;
+  --muted:     #728c9c;
+  --cy:        #54e7ff;
+  --am:        #ffbd59;
+  --rd:        #ff496c;
+  --em:        #3ee6a1;
+
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1100px 620px at 78% -8%, rgba(84,231,255,.07), transparent 62%),
+    radial-gradient(760px 520px at 6% 108%, rgba(255,73,108,.05), transparent 60%),
+    var(--ink);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 56px) 100px; }
+
+/* ---- masthead ----------------------------------------------------------- */
+.top { padding: clamp(44px, 7vw, 84px) 0 clamp(26px, 4vw, 40px); border-bottom: 1px solid var(--rule); }
+.eyebrow {
+  display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--muted);
+}
+.eyebrow b { color: var(--cy); font-weight: 500; }
+h1 {
+  margin: 18px 0 0;
+  font-family: var(--display); font-weight: 700;
+  font-size: clamp(34px, 5.6vw, 62px); line-height: 1.02; letter-spacing: -.015em;
+  text-wrap: balance;
+}
+h1 em { font-style: normal; color: var(--cy); }
+.standfirst { max-width: 62ch; margin: 16px 0 0; color: var(--soft); font-size: clamp(16px, 1.4vw, 18px); }
+
+/* ---- console ------------------------------------------------------------ */
+.console { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: clamp(20px, 3vw, 40px); align-items: start; padding-top: clamp(28px, 4vw, 44px); }
+@media (max-width: 900px) { .console { grid-template-columns: 1fr; } }
+
+.cues { display: grid; gap: 14px; }
+
+.cue {
+  position: relative; overflow: hidden;
+  padding: 20px 22px 18px 26px;
+  border: 1px solid var(--rule); border-radius: 12px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+}
+.cue::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--tone); }
+.cue[data-tone="warning-off"] { --tone: var(--cy); }
+.cue[data-tone="warning"]     { --tone: var(--am); }
+.cue[data-tone="critical"]    { --tone: var(--rd); }
+.cue[data-tone="good"]        { --tone: var(--em); }
+.cue[data-tone="accent"]      { --tone: var(--cy); }
+
+.cue-head { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; }
+.cue-tag { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; color: var(--muted); }
+.cue h3 { margin: 5px 0 0; font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: .04em; color: var(--tone); }
+
+.play {
+  display: inline-flex; gap: 9px; align-items: center;
+  min-height: 44px; flex: none; padding: 0 18px;
+  border: 1px solid var(--rule-hot); border-radius: 999px;
+  color: var(--text); background: rgba(255,255,255,.04);
+  font-family: var(--display); font-weight: 600; font-size: 12px; letter-spacing: .17em;
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+}
+.play svg { width: 13px; height: 13px; }
+.play:hover { background: rgba(84,231,255,.12); border-color: var(--cy); color: #fff; }
+.play:active { transform: scale(.97); }
+.play:focus-visible { outline: 2px solid var(--cy); outline-offset: 3px; }
+.play.is-firing { background: var(--tone); border-color: var(--tone); color: #04090f; }
+
+.cue-trigger { margin: 14px 0 0; color: var(--text); font-size: 15px; }
+.cue-why { margin: 8px 0 0; max-width: 62ch; color: var(--soft); font-size: 15px; }
+.cue-why em { color: var(--text); font-style: italic; }
+.cue-spec { margin: 12px 0 0; padding-top: 11px; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 11.5px; letter-spacing: .02em; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ---- scope -------------------------------------------------------------- */
+.rail { position: sticky; top: 22px; display: grid; gap: 14px; }
+.scope { padding: 18px 20px 20px; border: 1px solid var(--rule); border-radius: 12px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); }
+.scope h2, .rail h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 12px; letter-spacing: .2em; color: var(--muted); text-transform: uppercase; }
+#scope { display: block; width: 100%; height: 132px; margin-top: 13px; border: 1px solid var(--rule); border-radius: 7px; background: #05090e; }
+.scope-meta { display: flex; justify-content: space-between; margin-top: 10px; font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.scope-meta b { color: var(--cy); font-weight: 500; }
+
+.sequence { padding: 18px 20px 20px; border: 1px solid var(--rule-hot); border-radius: 12px; background: linear-gradient(180deg, rgba(255,73,108,.07), var(--panel)); }
+.sequence p { margin: 10px 0 14px; color: var(--soft); font-size: 14px; }
+.run {
+  display: flex; gap: 10px; align-items: center; justify-content: center;
+  width: 100%; min-height: 48px;
+  border: 1px solid var(--rd); border-radius: 9px;
+  color: var(--rd); background: rgba(255,73,108,.08);
+  font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: .16em;
+  cursor: pointer; transition: background .2s ease, color .2s ease;
+}
+.run:hover { background: var(--rd); color: #0a0409; }
+.run:focus-visible { outline: 2px solid var(--rd); outline-offset: 3px; }
+.run[disabled] { opacity: .55; cursor: default; }
+
+#steps { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+#steps li { display: grid; grid-template-columns: 62px 1fr; gap: 12px; align-items: baseline; font-family: var(--mono); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; transition: color .25s ease; }
+#steps li.is-now { color: var(--text); }
+#steps li.is-now span:first-child { color: var(--rd); }
+#steps li.is-done { color: var(--soft); }
+
+/* ---- rules -------------------------------------------------------------- */
+.rules { margin-top: clamp(34px, 5vw, 56px); padding-top: clamp(26px, 4vw, 38px); border-top: 1px solid var(--rule); }
+.rules h2 { margin: 0 0 6px; font-family: var(--display); font-weight: 700; font-size: clamp(21px, 2.4vw, 28px); letter-spacing: -.008em; color: var(--text); text-transform: none; }
+.rule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 1fr)); gap: 1px; margin-top: 22px; background: var(--rule); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+.rule { padding: 20px 22px; background: var(--panel); }
+.rule strong { display: block; font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: .13em; color: var(--cy); text-transform: uppercase; }
+.rule p { margin: 9px 0 0; color: var(--soft); font-size: 14.5px; }
+.rule code { font-family: var(--mono); font-size: .86em; padding: .1em .36em; border-radius: 3px; color: var(--text); background: rgba(255,255,255,.06); }
+
+.foot { margin-top: 30px; color: var(--muted); font-size: 13.5px; max-width: 70ch; }
+.foot code { font-family: var(--mono); font-size: .88em; color: var(--soft); }
+
+/* The wall's own arming prompt, styled to match this page. If it appears here,
+   it is behaving exactly as it will on the booth screen. */
+.audio-arm {
+  position: fixed; right: 18px; bottom: 18px; z-index: 40;
+  display: inline-flex; gap: 10px; align-items: center;
+  min-height: 44px; padding: 0 18px;
+  border: 1px solid var(--rule-hot); border-radius: 999px;
+  color: #bdf1ff; background: rgba(6,14,22,.94);
+  font-family: var(--display); font-weight: 500; font-size: 12px; letter-spacing: .15em;
+  cursor: pointer;
+}
+.audio-arm i { width: 9px; height: 9px; border-radius: 50%; background: var(--am); box-shadow: 0 0 12px rgba(255,189,89,.8); }
+
+@media (prefers-reduced-motion: reduce) { * { transition-duration: .01ms !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow"><span>DMATICS IT SOLUTIONS</span><span>GISEC 2026</span><b>SOC WALL · AUDIO</b></div>
+    <h1>Every alert the wall makes, <em>before the doors open</em></h1>
+    <p class="standfirst">
+      Six cues, synthesised in the browser — no audio files, nothing to lose off a USB stick,
+      nothing that breaks when the stand has no internet. Play them here, and if any of them
+      is wrong, say which and it changes.
+    </p>
+  </header>
+
+  <div class="console">
+    <section class="cues" aria-label="Alert cues">
+
+      <article class="cue" data-tone="warning-off">
+        <div class="cue-head">
+          <div>
+            <span class="cue-tag">CUE 01</span>
+            <h3>ATTENTION</h3>
+          </div>
+          <button class="play" type="button" data-call="detect(10)" aria-label="Play the attention cue">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
+            <span>PLAY</span>
+          </button>
+        </div>
+        <p class="cue-trigger">Severity 8 to 11 — reconnaissance, a shell command, an ordinary login.</p>
+        <p class="cue-why">A rising perfect fourth, 659 to 880 Hz. The interval lifts and station announcements use to mean <em>look up</em>. It is information, not danger, and that is what a severity-10 detection actually is.</p>
+        <p class="cue-spec">659 → 880 Hz · triangle · 260 ms · peak −13.8 dBFS</p>
+      </article>
+
+      <article class="cue" data-tone="warning">
+        <div class="cue-head">
+          <div>
+            <span class="cue-tag">CUE 02</span>
+            <h3>ELEVATED</h3>
+          </div>
+          <button class="play" type="button" data-call="detect(12)" aria-label="Play the elevated cue">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
+            <span>PLAY</span>
+          </button>
+        </div>
+        <p class="cue-trigger">Severity 12 to 13 — password spraying, a remote shell brute force, a credential file opened.</p>
+        <p class="cue-why">Three notes that refuse to resolve: up a fourth, then back down a whole step. The ear waits for a fourth note that never arrives. That is what makes it unsettling rather than merely loud.</p>
+        <p class="cue-spec">740 → 988 → 831 Hz · triangle · 400 ms · peak −11.6 dBFS</p>
+      </article>
+
+      <article class="cue" data-tone="critical">
+        <div class="cue-head">
+          <div>
+            <span class="cue-tag">CUE 03</span>
+            <h3>CRITICAL</h3>
+          </div>
+          <button class="play" type="button" data-call="detect(15)" aria-label="Play the critical cue">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
+            <span>PLAY</span>
+          </button>
+        </div>
+        <p class="cue-trigger">Severity 14 and above — privilege escalation, data staged for exfiltration.</p>
+        <p class="cue-why">Three hard double-stops, 932 against 1318 Hz. A tritone: the interval every emergency system in the world reaches for, because it is the one the ear refuses to file as music.</p>
+        <p class="cue-spec">932 + 1318 Hz ×3 · triangle + sine · 440 ms · peak −6.1 dBFS</p>
+      </article>
+
+      <article class="cue" data-tone="critical">
+        <div class="cue-head">
+          <div>
+            <span class="cue-tag">CUE 04</span>
+            <h3>CONTAINMENT</h3>
+          </div>
+          <button class="play" type="button" data-call="containment()" aria-label="Play the containment cue">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
+            <span>PLAY</span>
+          </button>
+        </div>
+        <p class="cue-trigger">The SOC cutting a laptop off. Fires with the full-red screen, 1.9 seconds after the detection that caused it.</p>
+        <p class="cue-why">An alternating two-tone through a low pass — the industrial alarm idiom — with a 68 Hz swell underneath that falls to 52 Hz across the cue. The sub is felt more than heard, and it is the reason this reads as weight rather than as a smoke detector.</p>
+        <p class="cue-spec">523 ⇄ 392 Hz ×5 · sawtooth @ 1.4 kHz LPF + 68 Hz sub · 1.05 s · peak −8.3 dBFS</p>
+      </article>
+
+      <article class="cue" data-tone="good">
+        <div class="cue-head">
+          <div>
+            <span class="cue-tag">CUE 05</span>
+            <h3>ALL CLEAR</h3>
+          </div>
+          <button class="play" type="button" data-call="cleared()" aria-label="Play the all clear cue">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
+            <span>PLAY</span>
+          </button>
+        </div>
+        <p class="cue-trigger">A station released. The alarm is over.</p>
+        <p class="cue-why">A falling triad, 880 to 659 to 523. Every other cue on the wall is unresolved on purpose; this is the only one that lands on its root, so the room knows it can relax.</p>
+        <p class="cue-spec">880 → 659 → 523 Hz · triangle · 480 ms · peak −14.1 dBFS</p>
+      </article>
+
+      <article class="cue" data-tone="accent">
+        <div class="cue-head">
+          <div>
+            <span class="cue-tag">CUE 06</span>
+            <h3>SCORE LANDED</h3>
+          </div>
+          <button class="play" type="button" data-call="score()" aria-label="Play the score landed cue">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
+            <span>PLAY</span>
+          </button>
+        </div>
+        <p class="cue-trigger">A visitor's arcade score arriving on the leaderboard.</p>
+        <p class="cue-why">One sine tick at 1319 Hz, twenty decibels under everything else. Loud enough to notice from the tablet, quiet enough that a busy morning does not turn the stand into a slot machine.</p>
+        <p class="cue-spec">1319 Hz · sine · 70 ms · peak −29.6 dBFS</p>
+      </article>
+    </section>
+
+    <aside class="rail">
+      <div class="scope">
+        <h2>Master bus</h2>
+        <canvas id="scope" width="640" height="264" aria-label="Live waveform of the master audio bus"></canvas>
+        <div class="scope-meta"><span>PEAK <b id="peak">−∞ dB</b></span><span id="ctxstate">CONTEXT IDLE</span></div>
+      </div>
+
+      <div class="sequence">
+        <h2>Full sequence</h2>
+        <p>The whole show, at the timing the booth actually runs — including the 1.9-second beat between the SOC noticing and the SOC acting.</p>
+        <button class="run" id="run" type="button">RUN THE SEQUENCE</button>
+        <ol id="steps">
+          <li data-at="0"><span>00.0s</span><span>Recon detected — attention</span></li>
+          <li data-at="2200"><span>02.2s</span><span>Credential attack — elevated</span></li>
+          <li data-at="4600"><span>04.6s</span><span>Privilege escalation — critical</span></li>
+          <li data-at="6500"><span>06.5s</span><span>Containment executed — klaxon</span></li>
+          <li data-at="11000"><span>11.0s</span><span>Station released — all clear</span></li>
+        </ol>
+      </div>
+    </aside>
+  </div>
+
+  <section class="rules">
+    <h2>Why it does not become noise by lunchtime</h2>
+    <div class="rule-grid">
+      <div class="rule">
+        <strong>The background is silent</strong>
+        <p>The wall invents ambient threat traffic constantly to keep the globe alive between visitors. None of it makes a sound. Only the red team laptops and the arcade are audible, so every noise the stand makes was caused by someone standing in it.</p>
+      </div>
+      <div class="rule">
+        <strong>A burst is one sound</strong>
+        <p>Ordinary cues are held to one every <code>700 ms</code> and ten in any thirty seconds. Eight detections arriving together produce one chime, not eight. Critical cues can interrupt that; they have their own five-second floor.</p>
+      </div>
+      <div class="rule">
+        <strong>Loud where it matters</strong>
+        <p>There are twenty-three decibels between the quietest cue and the loudest. A score landing is nearly subliminal; a containment is the loudest thing the stand does. The dynamic range is the message.</p>
+      </div>
+      <div class="rule">
+        <strong>Turning it down, or off</strong>
+        <p>Add <code>?volume=0.4</code> to the wall's address for a quiet hall, or <code>?sound=off</code> to silence one screen. The defaults live in <code>soc-config.js</code> and take a refresh, not a rebuild.</p>
+      </div>
+    </div>
+    <p class="foot">
+      Browsers refuse to make a sound until a page has been interacted with, and nobody
+      interacts with a wall display. Launch the booth machine with
+      <code>chromium --autoplay-policy=no-user-gesture-required --kiosk http://&lt;hub&gt;:7788/</code>
+      and the wall is audible from boot. Otherwise the screen is clicked once and the prompt
+      in the corner goes away for good — the same prompt you will see on this page if your
+      browser blocks it here.
+    </p>
+  </section>
+</div>
+
+<script>
+/* ===========================================================================
+ * SOC Wall — alert audio.
+ *
+ * Every sound on this wall is synthesised in the browser. There is not a single
+ * audio file: no download, no decode, nothing to lose off a USB stick, nothing
+ * that stops working when the booth has no internet. The whole layer is about
+ * six kilobytes of oscillator scheduling.
+ *
+ * The sound design is control room, not arcade. The arcade on the iPad has its
+ * own chiptune voice and should — it is a game. This screen is the thing the
+ * stand is judged on, so its cues follow the conventions people already know
+ * from real alerting systems:
+ *
+ *   ATTENTION   a rising perfect fourth. The universal "look up" interval —
+ *               lifts, hospital call systems, station announcements. It reads
+ *               as information, not as danger, which is what a severity-10
+ *               detection actually is.
+ *   ELEVATED    three notes that do not resolve. Unfinished on purpose: the
+ *               ear waits for a fourth note that never comes, and that is what
+ *               makes it feel unresolved rather than merely loud.
+ *   CRITICAL    three hard double-stops. Two tones a tritone apart, the
+ *               interval every emergency system in the world reaches for.
+ *   KLAXON      the containment alarm — an alternating two-tone through a low
+ *               pass with a sub swell underneath. This is the sound that lands
+ *               with the full-red screen when a laptop gets cut off.
+ *   CLEARED     a falling triad. Resolution, so the room can relax.
+ *
+ * Two rules keep it from becoming noise, which is the failure mode that gets
+ * booth audio switched off by lunchtime on day one:
+ *
+ *   1. The ambient telemetry is silent. Only real booth activity — the red team
+ *      laptops and the arcade — makes a sound. The wall invents background
+ *      traffic constantly and none of it is audible.
+ *   2. Everything is rate limited. A burst of eight detections is one sound,
+ *      not eight. Critical cues can interrupt, ordinary ones cannot.
+ *
+ * Autoplay: browsers will not let a page make noise before someone interacts
+ * with it, and nobody interacts with a wall display. Two answers, both wired
+ * up — launch Chrome with --autoplay-policy=no-user-gesture-required (the run
+ * book has the full command), or click the screen once. Until one of those
+ * happens a small prompt sits in the corner, and it removes itself the moment
+ * audio is live.
+ * ========================================================================= */
+
+/* Cue floors. A cue below its floor is dropped rather than queued — a stale
+ * beep arriving four seconds late is worse than no beep. */
+const MIN_GAP_MS = 700;      // between ordinary cues
+const URGENT_COOLDOWN = 5_000;  // between critical / klaxon cues
+const BUCKET_LIMIT = 10;     // ordinary cues ...
+const BUCKET_WINDOW = 30_000;   // ... per this window
+
+function createSocAudio(options = {}) {
+  const config = globalThis.SOC_CONFIG?.sound ?? {};
+  const params = new URLSearchParams(location.search);
+
+  const urlSound = params.get("sound");
+  const urlVolume = Number.parseFloat(params.get("volume"));
+
+  const enabled = urlSound ? urlSound !== "off" && urlSound !== "0" : config.enabled !== false;
+  const scoreBlips = config.scoreBlips !== false;
+  const masterVolume = Math.min(1, Math.max(0,
+    Number.isFinite(urlVolume) ? urlVolume : (Number.isFinite(config.volume) ? config.volume : 0.7)));
+
+  let context = null;
+  let master = null;
+  let armed = false;
+  let lastCueAt = 0;
+  let lastUrgentAt = 0;
+  const recent = [];
+
+  /* ---- graph -------------------------------------------------------------
+   * gain -> compressor -> speakers. The compressor is not decoration: a booth
+   * television's speakers distort badly on a loud low tone, and the klaxon has
+   * a 65 Hz swell in it. Ten dB of limiting keeps it a klaxon instead of a
+   * rattle. */
+  function build() {
+    /* options.contextFactory exists so the cues can be rendered offline into a
+     * file — the preview track Jeff can listen to is produced by running this
+     * exact code through an OfflineAudioContext, not by a second copy of the
+     * sound design that could quietly drift away from it. */
+    const Ctor = globalThis.AudioContext || globalThis.webkitAudioContext;
+    if (!options.contextFactory && !Ctor) return null;
+    context = options.contextFactory ? options.contextFactory() : new Ctor();
+    if (!context) return null;
+    master = context.createGain();
+    master.gain.value = masterVolume;
+    const limiter = context.createDynamicsCompressor();
+    limiter.threshold.value = -10;
+    limiter.knee.value = 12;
+    limiter.ratio.value = 8;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.18;
+    master.connect(limiter).connect(context.destination);
+    /* A host can tap the graph here — the sound-design review page hangs an
+     * analyser off the master bus so the cues can be watched as well as heard. */
+    options.onGraph?.(context, master);
+    return context;
+  }
+
+  function ready() {
+    if (!enabled) return null;
+    if (!context && !build()) return null;
+    if (typeof context.startRendering === "function") return context;   // offline render
+    if (context.state === "suspended") context.resume();
+    return context.state === "running" ? context : null;
+  }
+
+  /* ---- one voice ---------------------------------------------------------
+   * A raw oscillator switched on and off clicks, and a wall full of clicks
+   * sounds broken rather than urgent. Every note gets a few milliseconds of
+   * attack and an exponential tail, which is the difference between "a beep"
+   * and "an instrument". */
+  function voice(context, {
+    frequency, duration, type = "triangle", gain = 0.2, at = 0,
+    glide = 0, attack = 0.006, filter = 0, detune = 0,
+  }) {
+    if (!Number.isFinite(frequency) || frequency <= 0) return;
+    const start = context.currentTime + at;
+    const oscillator = context.createOscillator();
+    const envelope = context.createGain();
+
+    oscillator.type = type;
+    oscillator.detune.value = detune;
+    oscillator.frequency.setValueAtTime(frequency, start);
+    if (glide) oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, glide), start + duration);
+
+    envelope.gain.setValueAtTime(0.0001, start);
+    envelope.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), start + attack);
+    envelope.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+
+    let tail = envelope;
+    if (filter) {
+      const lowpass = context.createBiquadFilter();
+      lowpass.type = "lowpass";
+      lowpass.frequency.value = filter;
+      lowpass.Q.value = 0.8;
+      envelope.connect(lowpass);
+      tail = lowpass;
+    }
+
+    oscillator.connect(envelope);
+    tail.connect(master);
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.06);
+  }
+
+  /* ---- pacing ------------------------------------------------------------ */
+  function allow(urgent) {
+    const now = Date.now();
+    if (urgent) {
+      if (now - lastUrgentAt < URGENT_COOLDOWN) return false;
+      lastUrgentAt = now;
+      lastCueAt = now;
+      return true;
+    }
+    if (now - lastCueAt < MIN_GAP_MS) return false;
+    while (recent.length && now - recent[0] > BUCKET_WINDOW) recent.shift();
+    if (recent.length >= BUCKET_LIMIT) return false;
+    recent.push(now);
+    lastCueAt = now;
+    return true;
+  }
+
+  // ---- the cues -----------------------------------------------------------
+
+  /** A booth detection reached the wall. Severity picks the voice. */
+  function detect(level = 10) {
+    const context = ready();
+    if (!context) return false;
+
+    if (level >= 14) return critical();
+
+    if (!allow(false)) return false;
+
+    if (level >= 12) {
+      // Three notes that refuse to resolve — up, up, back down a step.
+      voice(context, { frequency: 740, duration: 0.11, gain: 0.32, type: "triangle" });
+      voice(context, { frequency: 988, duration: 0.11, gain: 0.32, type: "triangle", at: 0.10 });
+      voice(context, { frequency: 831, duration: 0.20, gain: 0.28, type: "triangle", at: 0.20 });
+      return true;
+    }
+
+    // Rising perfect fourth: attention, not alarm.
+    voice(context, { frequency: 659, duration: 0.10, gain: 0.26, type: "triangle" });
+    voice(context, { frequency: 880, duration: 0.17, gain: 0.26, type: "triangle", at: 0.09 });
+    return true;
+  }
+
+  /** Severity 14+. Three double-stops a tritone apart. */
+  function critical() {
+    const context = ready();
+    if (!context || !allow(true)) return false;
+    for (let pulse = 0; pulse < 3; pulse += 1) {
+      const at = pulse * 0.17;
+      voice(context, { frequency: 932, duration: 0.10, gain: 0.34, type: "triangle", at });
+      voice(context, { frequency: 1318, duration: 0.10, gain: 0.22, type: "sine", at, detune: 6 });
+    }
+    return true;
+  }
+
+  /** Containment. The sound that lands with the red screen. */
+  function containment() {
+    const context = ready();
+    if (!context || !allow(true)) return false;
+
+    // Alternating two-tone through a low pass — the industrial alarm idiom.
+    // Sawtooth alone is harsh; rolled off at 1.4 kHz it has body instead.
+    const pattern = [523, 392, 523, 392, 523];
+    pattern.forEach((frequency, index) => {
+      voice(context, {
+        frequency, duration: 0.19, gain: 0.40, type: "sawtooth",
+        at: index * 0.2, filter: 1_400, attack: 0.012,
+      });
+    });
+
+    // A sub swell underneath the whole thing. Felt more than heard, and the
+    // reason it reads as weight rather than as a smoke detector.
+    voice(context, { frequency: 68, duration: 1.05, gain: 0.44, type: "sine", attack: 0.09, glide: 52 });
+    return true;
+  }
+
+  /** Station released, alarm over. A falling triad, so the room can relax. */
+  function cleared() {
+    const context = ready();
+    if (!context) return false;
+    lastCueAt = Date.now();
+    [880, 659, 523].forEach((frequency, index) => {
+      voice(context, { frequency, duration: 0.22, gain: 0.22, type: "triangle", at: index * 0.13 });
+    });
+    return true;
+  }
+
+  /** A score landing on the leaderboard. Deliberately almost nothing. */
+  function score() {
+    if (!scoreBlips) return false;
+    const context = ready();
+    if (!context || !allow(false)) return false;
+    voice(context, { frequency: 1_319, duration: 0.07, gain: 0.16, type: "sine" });
+    return true;
+  }
+
+  // ---- arming -------------------------------------------------------------
+  /* The prompt lives outside the scaled surface as its own fixed element, so it
+   * cannot disturb the wall's geometry, and it deletes itself the instant audio
+   * is running. On a booth machine launched with the autoplay flag, it never
+   * appears at all. */
+  function prompt() {
+    if (document.getElementById("audio-arm")) return;
+    const pill = document.createElement("button");
+    pill.id = "audio-arm";
+    pill.type = "button";
+    pill.className = "audio-arm";
+    pill.innerHTML = '<i aria-hidden="true"></i><span>ALERT AUDIO OFF · CLICK TO ENABLE</span>';
+    pill.addEventListener("click", () => { if (arm()) cleared(); });
+    document.body.append(pill);
+  }
+
+  function dismiss() {
+    document.getElementById("audio-arm")?.remove();
+  }
+
+  function arm() {
+    if (!enabled || armed) return armed;
+    if (!ready()) return false;
+    armed = true;
+    dismiss();
+    options.onArmed?.();
+    return true;
+  }
+
+  if (enabled && !options.contextFactory) {
+    /* Try immediately — this is the path that succeeds under the kiosk flag.
+     * If it does not, any interaction anywhere arms it, and the prompt shows
+     * after a moment so nobody has to guess. */
+    if (!arm()) {
+      for (const type of ["pointerdown", "keydown", "touchstart"]) {
+        addEventListener(type, () => arm(), { passive: true });
+      }
+      setTimeout(() => { if (!arm()) prompt(); }, 2_500);
+    }
+  }
+
+  return {
+    detect, critical, containment, cleared, score, arm,
+    get armed() { return armed; },
+    get enabled() { return enabled; },
+  };
+}
+
+
+// ---- page wiring ----------------------------------------------------------
+const canvas = document.getElementById("scope");
+const paint = canvas.getContext("2d");
+const peakOut = document.getElementById("peak");
+const stateOut = document.getElementById("ctxstate");
+
+let analyser = null;
+let buffer = null;
+let peakHold = 0;
+let peakDecay = 0;
+
+const audio = createSocAudio({
+  onGraph(context, master) {
+    analyser = context.createAnalyser();
+    analyser.fftSize = 2048;
+    buffer = new Float32Array(analyser.fftSize);
+    master.connect(analyser);          // a tap, not a break in the chain
+    stateOut.textContent = "CONTEXT LIVE";
+  },
+});
+
+/* The trace. Not decoration: the containment cue's 68 Hz swell is visible here
+   as a slow rolling shape under the two-tone, which is the part that is hard to
+   judge by ear on laptop speakers. */
+function draw() {
+  requestAnimationFrame(draw);
+  const width = canvas.width, height = canvas.height, middle = height / 2;
+
+  paint.fillStyle = "#05090e";
+  paint.fillRect(0, 0, width, height);
+  paint.strokeStyle = "rgba(122,190,216,.10)";
+  paint.lineWidth = 1;
+  for (let y = 1; y < 4; y += 1) {
+    paint.beginPath();
+    paint.moveTo(0, (height / 4) * y);
+    paint.lineTo(width, (height / 4) * y);
+    paint.stroke();
+  }
+
+  if (!analyser) return;
+  analyser.getFloatTimeDomainData(buffer);
+
+  let loudest = 0;
+  paint.beginPath();
+  for (let index = 0; index < buffer.length; index += 1) {
+    const value = buffer[index];
+    if (Math.abs(value) > loudest) loudest = Math.abs(value);
+    const x = (index / buffer.length) * width;
+    const y = middle - value * (height * 0.46);
+    index ? paint.lineTo(x, y) : paint.moveTo(x, y);
+  }
+  paint.strokeStyle = loudest > 0.3 ? "#ff496c" : loudest > 0.08 ? "#ffbd59" : "#54e7ff";
+  paint.lineWidth = 2;
+  paint.shadowBlur = 12;
+  paint.shadowColor = paint.strokeStyle;
+  paint.stroke();
+  paint.shadowBlur = 0;
+
+  if (loudest > peakHold) { peakHold = loudest; peakDecay = 0; }
+  else if (++peakDecay > 90) { peakHold = Math.max(0, peakHold - 0.006); }
+  peakOut.textContent = peakHold < 0.0005
+    ? "\u2212\u221E dB"
+    : "\u2212" + Math.abs(20 * Math.log10(peakHold)).toFixed(1) + " dB";
+}
+draw();
+
+for (const button of document.querySelectorAll(".play")) {
+  button.addEventListener("click", () => {
+    audio.arm();
+    const [method, argument] = button.dataset.call.replace(")", "").split("(");
+    argument ? audio[method](Number(argument)) : audio[method]();
+    button.classList.add("is-firing");
+    setTimeout(() => button.classList.remove("is-firing"), 420);
+  });
+}
+
+// ---- the full sequence ----------------------------------------------------
+const runButton = document.getElementById("run");
+const steps = [...document.querySelectorAll("#steps li")];
+const SCRIPT = [
+  [0,     () => audio.detect(10)],
+  [2200,  () => audio.detect(12)],
+  [4600,  () => audio.detect(15)],
+  [6500,  () => audio.containment()],
+  [11000, () => audio.cleared()],
+];
+
+runButton.addEventListener("click", () => {
+  audio.arm();
+  runButton.disabled = true;
+  runButton.textContent = "RUNNING…";
+  for (const step of steps) step.classList.remove("is-now", "is-done");
+
+  SCRIPT.forEach(([delay, fire], index) => {
+    setTimeout(() => {
+      fire();
+      steps.forEach((step, position) => {
+        step.classList.toggle("is-now", position === index);
+        step.classList.toggle("is-done", position < index);
+      });
+    }, delay);
+  });
+
+  setTimeout(() => {
+    for (const step of steps) step.classList.remove("is-now");
+    runButton.disabled = false;
+    runButton.textContent = "RUN THE SEQUENCE";
+  }, 13000);
+});
+</script>

@@ -1,0 +1,10 @@
+Flask==3.0.3
+
+# Production server.
+#
+# gunicorn is what the Dockerfile runs, and it is Linux-only — it needs fcntl,
+# which Windows does not have. waitress is the equivalent that does run there,
+# so the challenge can be brought up natively on a Windows laptop without
+# Docker. Installing both on either platform is harmless; only one is used.
+gunicorn==22.0.0 ; sys_platform != "win32"
+waitress==3.0.0  ; sys_platform == "win32"
