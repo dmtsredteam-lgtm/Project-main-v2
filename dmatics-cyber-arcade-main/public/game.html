@@ -243,7 +243,7 @@
     background:color-mix(in srgb,var(--gc) 20%,transparent);border:.14em solid color-mix(in srgb,var(--gc) 50%,transparent);box-shadow:0 0 1.2em color-mix(in srgb,var(--gc) 40%,transparent);}
   .icobox svg{width:calc(var(--u)*2);height:calc(var(--u)*2);stroke:var(--gc);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
   .cab .kind{font-size:calc(var(--u)*.72);letter-spacing:.2em;font-weight:800;color:var(--gc);}
-  .cab .diff{display:inline-block;margin-left:.6em;vertical-align:.12em;font-size:calc(var(--u)*.6);letter-spacing:.14em;font-weight:800;padding:.3em .8em;border-radius:99px;border:.12em solid;text-transform:uppercase;}
+  .cab .diff{display:inline-block;align-self:flex-start;margin-left:.6em;vertical-align:.12em;font-size:calc(var(--u)*.6);letter-spacing:.14em;font-weight:800;padding:.3em .8em;border-radius:99px;border:.12em solid;text-transform:uppercase;}
 .cab .diff.easy{color:#7ff0a8;border-color:rgba(62,230,122,.55);background:rgba(62,230,122,.12);}
 .cab .diff.med{color:#ffe08a;border-color:rgba(255,210,63,.55);background:rgba(255,210,63,.12);}
 .cab .diff.hard{color:#ffa3b3;border-color:rgba(255,93,115,.55);background:rgba(255,93,115,.12);}
@@ -689,8 +689,8 @@
         </span>
       </div>
       <div class="lbtabs" id="lbtabs">
-        <button class="lbtab on" onclick="ARCADE.hall('all',this)">ALL GAMES</button>
-        <button class="lbtab" onclick="ARCADE.hall('phish',this)">PHISH HUNTER</button>
+        
+        <button class="lbtab on" onclick="ARCADE.hall('phish',this)">PHISH HUNTER</button>
         <button class="lbtab" onclick="ARCADE.hall('soc',this)">ALERT RUSH</button>
         <button class="lbtab" onclick="ARCADE.hall('breach',this)">BREACH POINT</button>
       </div>
@@ -1720,7 +1720,7 @@ const ARCADE=(function(){
  function setTheme(t){document.body.dataset.game=t;BG.setMode(t);}
 
  /* ---- Hall of Fame (hub leaderboard across every game) ---- */
- let hallTab='all';
+ let hallTab='phish';
  const GLABEL={phish:'PHISH',soc:'SOC',breach:'BREACH'};
  function hall(which,btn){
    if(which){hallTab=which;}
@@ -1800,7 +1800,7 @@ const ARCADE=(function(){
    const GS=['phish','soc','breach'];
    const boards=await Promise.all(GS.map(g=>fetchServerBoard(g)));
    let got=false;
-   GS.forEach((g,i)=>{if(boards[i]){localPersist(g,mergeBoards(loadBoardFor(g),boards[i]));got=true;}});
+   GS.forEach((g,i)=>{if(boards[i]){localPersist(g,bestPerName(boards[i],10));got=true;}});
    if(got)lastSync=Date.now();
    syncing=false;if(btn)btn.classList.remove('spin');
    renderHall();
