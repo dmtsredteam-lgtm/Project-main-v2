@@ -17,7 +17,49 @@
       <button class="btn" style="width:100%">Start the Clock ▸</button>
     </form>
     {% with m = get_flashed_messages() %}{% if m %}<p class="err">{{ m[0] }}</p>{% endif %}{% endwith %}
+    <button type="button" class="btn ghost" style="width:100%;margin-top:14px" onclick="openGuide()">❔ How to Play</button>
     <p class="muted" style="margin-bottom:0;font-size:13px">By starting you agree this is a simulated, sandboxed lab. No real systems are touched. — DMATICS IT Solutions LLC, Dubai.</p>
   </div>
 </div>
+
+<div class="info-overlay" id="guide">
+  <div class="info-box">
+    <button type="button" class="info-close" onclick="closeGuide()" aria-label="Close">✕</button>
+    <div class="tag">Mission Briefing</div>
+    <h2 style="margin:8px 0 2px">How to Play</h2>
+    <p class="muted" style="margin-top:0">You're a red-team operator, live against <b>{{ stage_count }} stages</b> on a fictional target, with the clock running the moment you start. Each stage unlocks the next in strict order — there's no skipping ahead.</p>
+
+    <h4>The {{ stage_count }} phases</h4>
+    <ul class="phase-list">
+      <li><b class="n">1</b><div class="ph-body"><b>Reconnaissance</b><span>Scout the public-facing side of the target for your first way in.</span></div></li>
+      <li><b class="n">2</b><div class="ph-body"><b>Credential Access</b><span>Get past a login that's guarding the next layer.</span></div></li>
+      <li><b class="n">3</b><div class="ph-body"><b>Lateral Movement</b><span>Pivot what you've gained into something deeper inside.</span></div></li>
+      <li><b class="n">4</b><div class="ph-body"><b>Foothold</b><span>Land a working shell on the target host.</span></div></li>
+      <li><b class="n">5</b><div class="ph-body"><b>Exfiltration — Crown Jewel</b><span>Track down and pull out the one file that actually matters.</span></div></li>
+    </ul>
+
+    <h4>Flags</h4>
+    <p class="muted" style="margin-top:0">Every stage hides one flag, formatted like <span class="flagfmt">DMATICS{example}</span>. Copy it whole — braces included — and submit it on <b>Mission Control</b>; that's the only place flags are scored, and a correct one unlocks the next stage.</p>
+
+    <h4>Tips</h4>
+    <p class="muted" style="margin-top:0">Every stage page carries its own boxed tip — read it before you start guessing. Between them, they're enough to get you through without a walkthrough.</p>
+
+    <h4>The SOC is watching</h4>
+    <p class="muted" style="margin-top:0">Noisy or reckless moves get noticed and raise the heat meter in the nav bar. Push it too far and you'll be watched, throttled, or shut down for a stretch — read the room, not just the target.</p>
+
+    <button type="button" class="btn" style="width:100%;margin-top:10px" onclick="closeGuide()">Got it</button>
+  </div>
+</div>
+{% endblock %}
+{% block script %}
+<script>
+function openGuide(){ document.getElementById('guide').classList.add('on'); }
+function closeGuide(){ document.getElementById('guide').classList.remove('on'); }
+document.getElementById('guide').addEventListener('click', function(e){
+  if(e.target.id === 'guide') closeGuide();
+});
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape') closeGuide();
+});
+</script>
 {% endblock %}

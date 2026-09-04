@@ -107,8 +107,10 @@ async function connect(cred) {
         const rows = await c.zRangeWithScores(k, 0, Math.max(0, count - 1), { REV: true });
         return rows.map((r) => ({ member: r.value, score: Number(r.score) }));
       },
+      zrem: (k, member) => c.zRem(k, member),
       hset: (k, field, value) => c.hSet(k, field, String(value)),
       hgetall: (k) => c.hGetAll(k),
+      hdel: (k, field) => c.hDel(k, field),
       incrEx: async (k, seconds) => {
         const n = await c.incr(k);
         if (n === 1) await c.expire(k, seconds);
@@ -139,8 +141,10 @@ async function connect(cred) {
       }
       return out;
     },
+    zrem: (k, member) => kv.zrem(k, member),
     hset: (k, field, value) => kv.hset(k, { [field]: String(value) }),
     hgetall: (k) => kv.hgetall(k),
+    hdel: (k, field) => kv.hdel(k, field),
     incrEx: async (k, seconds) => {
       const n = await kv.incr(k);
       if (n === 1) await kv.expire(k, seconds);
@@ -273,6 +277,55 @@ export async function addScore(game, name, score) {
   }
   mem[game] = sortTrim((mem[game] || []).concat(entry));
   return mem[game];
+}
+
+// Same normalisation clean() in the scores route applies before a name is ever
+// stored (uppercase, trimmed) — matching on it here means "SAM", "sam" and
+// " Sam " all find the row that a visitor actually saved under.
+function normalizeName(name) {
+  return String(name || '').toUpperCase().trim();
+}
+
+/* Removes ONE player's row from a game's board — every trace of them, not just
+ * the ranked one.
+ *
+ * The sorted set (BEST) is what ranks the board, but readBest() ALWAYS folds
+ * the raw append-only list back in (`rows.concat(recent)`) so an upgrade never
+ * looks like it wiped history — which means a name still sitting in the raw
+ * list resurrects itself onto the board via sortTrim() the instant this ran,
+ * even after being dropped from BEST/WHEN. The list has to be rewritten too,
+ * not just the set. There's no "delete matching" primitive for a Redis list,
+ * so it's read whole, filtered, and rebuilt — cheap, since it's capped at KEEP
+ * (200) entries.
+ */
+export async function removeScore(game, name) {
+  if (!GAMES.includes(game)) return { removed: 0 };
+  const key = normalizeName(name);
+  if (!key) return { removed: 0 };
+
+  const c = await db();
+  if (c) {
+    try {
+      const raw = await c.lrange(LIST + game, 0, KEEP - 1).catch(() => []);
+      const parsed = (Array.isArray(raw) ? raw : []).map(safeParse).filter(Boolean);
+      const kept = parsed.filter((e) => !(e && typeof e.n === 'string' && e.n.toUpperCase() === key));
+      const removed = parsed.length - kept.length;
+      if (removed > 0) {
+        await c.del(LIST + game).catch(() => {});
+        // LPUSH prepends; pushing oldest-first leaves the newest entry back at
+        // the head, the same relative order the list had before the rewrite.
+        for (const entry of [...kept].reverse()) {
+          await c.lpush(LIST + game, JSON.stringify(entry)).catch(() => {});
+        }
+      }
+      if (typeof c.zrem === 'function') await c.zrem(BEST + game, key).catch(() => {});
+      if (typeof c.hdel === 'function') await c.hdel(WHEN + game, key).catch(() => {});
+      return { removed };
+    } catch (e) { /* fall through to memory */ }
+  }
+  const before = (mem[game] || []).length;
+  mem[game] = (mem[game] || []).filter((e) => !(e && typeof e.n === 'string' && e.n.toUpperCase() === key));
+  return { removed: before - mem[game].length };
 }
 
 // Diagnostics for /api/health — reports NAMES of env vars only, never values.

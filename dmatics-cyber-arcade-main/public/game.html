@@ -1722,6 +1722,12 @@ const ARCADE=(function(){
  /* ---- Hall of Fame (hub leaderboard across every game) ---- */
  let hallTab='phish';
  const GLABEL={phish:'PHISH',soc:'SOC',breach:'BREACH'};
+ // Longer labels for the admin "remove one player" board picker — GLABEL above
+ // stays short for the Hall of Fame tab chips and never carries 'redteam'
+ // (hallTab is always phish/soc/breach/all), so this is a separate map rather
+ // than growing that one into something the tab renderer wasn't built for.
+ const GLABEL_ADM={phish:'Phish Hunter',soc:'Alert Rush',breach:'Breach Point',redteam:'Red Team'};
+ let clearGame='phish';
  function hall(which,btn){
    if(which){hallTab=which;}
    if(btn){[...$('lbtabs').children].forEach(b=>b.classList.toggle('on',b===btn));}
@@ -1851,9 +1857,31 @@ const ARCADE=(function(){
        '<div class="row"><button class="danger" id="admGo" onclick="ARCADE.adminReset()">🗑 CLEAR LEADERBOARDS</button></div>'+
        '<div class="msg" id="admMsg"></div>'+
      '</div>'+
+     '<div class="adm">'+
+       '<h4>ADMIN — REMOVE ONE PLAYER</h4>'+
+       '<p class="admnote">Removes a single handle from one board — a typo, a name someone doesn\'t want up there, or (Red Team, which is one shot per handle) freeing a name that already played so it can register again. Doesn\'t touch anyone else\'s score. Uses the same login as above.</p>'+
+       '<div class="setrow"><span class="setlbl">Board</span><span class="setopts" id="admGamePick"></span></div>'+
+       '<input id="admPlayer" placeholder="Player handle to remove" autocomplete="off" spellcheck="false">'+
+       '<div class="row"><button class="danger" id="admPlayerGo" onclick="ARCADE.adminClearName()">🗑 REMOVE PLAYER</button></div>'+
+       '<div class="msg" id="admPlayerMsg"></div>'+
+     '</div>'+
      '<button class="mgo" onclick="ARCADE.closeModal()">GOT IT</button>';
    $('modal').classList.add('on');
    renderAudioOpts();
+   renderClearGamePick();
+ }
+ // Which board "REMOVE ONE PLAYER" targets. Resets to Phish Hunter every time
+ // the panel opens — carrying yesterday's pick across visits to the modal is
+ // how a crew member ends up clearing the wrong game by habit.
+ function renderClearGamePick(){
+   const w=$('admGamePick');if(!w)return;
+   clearGame='phish';
+   w.innerHTML=Object.keys(GLABEL_ADM).map(g=>
+     '<button class="opt'+(g===clearGame?' on':'')+'" data-g="'+g+'" onclick="ARCADE.pickClearGame(this)">'+GLABEL_ADM[g]+'</button>').join('');
+ }
+ function pickClearGame(btn){
+   clearGame=btn.dataset.g;
+   const w=$('admGamePick');if(w)[...w.children].forEach(b=>b.classList.toggle('on',b===btn));
  }
  // Music and SFX pickers. Choices are saved per device, so each tablet keeps its
  // own setting and the booth can run them quietly or loudly as needed.
@@ -1914,6 +1942,70 @@ const ARCADE=(function(){
      lastSync=0;renderHall();
      m.className='msg ok';m.textContent='✓ All leaderboards cleared.';
      p.value='';SFX.good();
+   }catch(e){m.className='msg err';m.textContent='Could not reach the server.';}
+   btn.disabled=false;
+ }
+ /* Frees up a single handle on ONE board — the companion to adminReset()
+    above, same login, far smaller blast radius: adminReset() wipes every
+    board, this removes one row from one of them (whichever GLABEL_ADM chip is
+    selected — see pickClearGame()).
+
+    Red Team has no offline path: its board lives on the challenge laptop's own
+    SQLite file, never on this tablet, so it always needs the network. The
+    arcade's own three games DO have an offline path, same as adminReset()'s:
+    running from a file:// copy with no hub reachable, "the leaderboard" is
+    just this tablet's localStorage, so removal happens locally instead of
+    over the network. */
+ async function adminClearName(){
+   const u=$('admUser'),p=$('admPass'),n=$('admPlayer'),m=$('admPlayerMsg'),btn=$('admPlayerGo');
+   if(!u||!p||!n||!m)return;
+   const user=u.value.trim(),pass=p.value,player=n.value.trim(),game=clearGame,label=GLABEL_ADM[game]||game;
+   m.className='msg';m.textContent='';
+   if(!user||!pass){m.className='msg err';m.textContent='Enter the username and password.';return;}
+   if(!player){m.className='msg err';m.textContent='Enter the player handle to remove.';return;}
+   const base=apiBase();
+   if(base===null){
+     if(game==='redteam'){
+       m.className='msg err';
+       m.textContent='Offline — Red Team needs a network connection to the challenge station; there\'s nothing to clear on this tablet.';
+       return;
+     }
+     if(user!==ADMIN_USER_LOCAL||pass!==ADMIN_PASS_LOCAL){
+       m.className='msg err';m.textContent='Wrong username or password.';return;
+     }
+     if(!confirm('Remove "'+player+'" from this tablet\'s '+label+' board?'))return;
+     const key=player.toUpperCase();
+     const before=loadBoardFor(game);
+     const after=before.filter(r=>String(r.n||'').toUpperCase()!==key);
+     localPersist(game,after);
+     renderHall();
+     m.className='msg ok';
+     m.textContent=before.length!==after.length
+       ? '✓ Removed "'+player+'" from this tablet\'s '+label+' board.'
+       : 'That handle wasn\'t on this tablet\'s '+label+' board.';
+     n.value='';SFX.good();
+     return;
+   }
+   if(!confirm('Remove "'+player+'" from the '+label+' leaderboard? This does not touch any other player\'s score.'))return;
+   btn.disabled=true;m.textContent='Removing…';
+   try{
+     const res=await fetch(base+'/api/admin/clear-name',{method:'POST',
+       headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({user:user,pass:pass,player:player,game:game})});
+     const j=await res.json().catch(()=>({}));
+     if(!res.ok||!j.ok){m.className='msg err';m.textContent=j.error||'Could not remove that player.';btn.disabled=false;return;}
+     if(game!=='redteam'){lastSync=0;renderHall();}   // this arcade's own board changed — refresh what's on screen
+     const parts=(j.surfaces||[]);
+     const bad=parts.filter(x=>!x.ok);
+     if(bad.length){
+       m.className='msg err';
+       m.innerHTML=esc('⚠ Partly cleared. NOT cleared: ')+
+         bad.map(x=>'<b>'+esc(x.name)+'</b> ('+esc(x.detail||'no reason given')+')').join(', ');
+     } else {
+       m.className='msg ok';
+       m.textContent='✓ '+(j.message||('"'+player+'" removed.'));
+     }
+     n.value='';SFX.good();
    }catch(e){m.className='msg err';m.textContent='Could not reach the server.';}
    btn.disabled=false;
  }
@@ -2281,7 +2373,7 @@ const ARCADE=(function(){
  }
  function closeReview(){show('end');}
 
- return{sync,hint,adminReset,setMusic,setSfx,goLand,goHub,toggleSfx,toggleMusic,how,openSetup,closeModal,start,begin,act,saveScore,openReview,closeReview,hall,_phish:phishAnswer,_hi:refreshHi};
+ return{sync,hint,adminReset,adminClearName,pickClearGame,setMusic,setSfx,goLand,goHub,toggleSfx,toggleMusic,how,openSetup,closeModal,start,begin,act,saveScore,openReview,closeReview,hall,_phish:phishAnswer,_hi:refreshHi};
 })();
 
 $('btnLegit').addEventListener('click',()=>ARCADE._phish(false));

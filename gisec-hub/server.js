@@ -1041,6 +1041,108 @@ const server = http.createServer(async (request, response) => {
       });
     }
 
+    // Removes ONE handle from ONE game's board on the hub's own cache — the
+    // arena board the wall reads. Started as red-team-only (the pairing to its
+    // "one shot per name" rule in app.py, name_taken()); now covers all four
+    // games, since the arcade needs the exact same "remove one player" action
+    // for Phish Hunter / Alert Rush / Breach Point. Same auth as
+    // /api/admin/reset; clears far less.
+    //
+    // Red team keeps a second, authoritative copy on its own SQLite file (see
+    // save_score() in app.py) — this forwards to it too, or the wall would show
+    // a name the challenge itself already dropped. The arcade's three games
+    // have no such second hop from here: their source of truth is the arcade's
+    // own store (lib/store.js), which the ARCADE's /api/admin/clear-name route
+    // clears directly before it ever calls this one — this endpoint only ever
+    // owns the hub's cached copy for them.
+    if (pathname === '/api/admin/clear-name' && request.method === 'POST') {
+      const body = await readBody(request);
+      const digest = (value) => crypto.createHash('sha256').update(String(value ?? '')).digest();
+      const same = (a, b) => crypto.timingSafeEqual(digest(a), digest(b));
+
+      const byToken = Boolean(ADMIN_TOKEN) && Object.hasOwn(body, 'token');
+      const byLogin = Boolean(ADMIN_USER && ADMIN_PASSWORD) && Object.hasOwn(body, 'user');
+
+      if (!byToken && !byLogin) {
+        return json(response, 503, {
+          ok: false,
+          error: (ADMIN_TOKEN || (ADMIN_USER && ADMIN_PASSWORD))
+            ? 'Send either {token} or {user, pass}.'
+            : 'Reset is disabled: set ADMIN_TOKEN, or ADMIN_USER and ADMIN_PASSWORD, on the hub.',
+        });
+      }
+      const authorised = byToken
+        ? same(body.token, ADMIN_TOKEN)
+        : same(body.user, ADMIN_USER) && same(body.pass, ADMIN_PASSWORD);
+      if (!authorised) {
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+        return json(response, 401, {
+          ok: false,
+          error: byToken ? 'bad token' : 'Wrong username or password.',
+        });
+      }
+
+      const player = typeof body.player === 'string' ? body.player.trim() : '';
+      if (!player) return json(response, 400, { ok: false, error: 'no player name given' });
+      // Defaults to 'redteam' for existing callers that pre-date the `game`
+      // field (the red team challenge itself never sends one). An unknown
+      // value falls back the same way rather than 400ing a booth action.
+      const game = GAME_KEYS.includes(body.game) ? body.game : 'redteam';
+      const key = player.toUpperCase();
+
+      const before = state.scores[game]?.length ?? 0;
+      state.scores[game] = (state.scores[game] ?? []).filter(
+        (entry) => !(entry && typeof entry.n === 'string' && entry.n.toUpperCase() === key)
+      );
+      const removedHere = before - state.scores[game].length;
+      if (removedHere) {
+        persist();
+        broadcastWall('score', { game, entry: null, leaderboard: leaderboardPayload() });
+      }
+      log(`cleared handle ${JSON.stringify(player)} from the ${game} arena board (${removedHere} row(s))`);
+
+      const surfaces = [{ name: 'hub', ok: true, detail: `removed ${removedHere} row(s)` }];
+      if (game === 'redteam') {
+        if (!REDTEAM_URL) {
+          surfaces.push({ name: 'red team', ok: false, detail: 'REDTEAM_URL is not set on the hub' });
+        } else if (!ADMIN_TOKEN) {
+          surfaces.push({ name: 'red team', ok: false, detail: 'ADMIN_TOKEN is not set on the hub' });
+        } else {
+          try {
+            const reply = await fetch(`${REDTEAM_URL}/admin/clear-name`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN_TOKEN },
+              body: JSON.stringify({ player }),
+              signal: AbortSignal.timeout(6_000),
+            });
+            const payload = await reply.json().catch(() => ({}));
+            surfaces.push(reply.ok && payload.ok !== false
+              ? { name: 'red team', ok: true, detail: `removed ${payload.rows ?? 0} row(s)` }
+              : { name: 'red team', ok: false, detail: payload.error || `HTTP ${reply.status}` });
+          } catch (error) {
+            const raw = String(error?.message || error);
+            surfaces.push({
+              name: 'red team',
+              ok: false,
+              detail: /timeout|abort/i.test(raw)
+                ? 'no answer within 6s — is it running?'
+                : `unreachable at ${REDTEAM_URL} — is it running, and on this network?`,
+            });
+          }
+        }
+      }
+      const failed = surfaces.filter((s) => !s.ok);
+      return json(response, 200, {
+        ok: true,
+        player,
+        game,
+        surfaces,
+        message: failed.length
+          ? `Could not fully clear "${player}": ${failed.map((s) => s.name).join(', ')}.`
+          : `"${player}" removed from ${surfaces.map((s) => s.name).join(', ')}.`,
+      });
+    }
+
     // ---- static (optional convenience) -------------------------------------
     // HEAD too, not only GET. Uptime checks, load balancers and `curl -I` all
     // use HEAD; the wall answered 200 to GET / and 404 to HEAD /, which looks

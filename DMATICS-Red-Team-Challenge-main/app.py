@@ -15,6 +15,9 @@
 # Built by the DMATICS Offensive Security team, Dubai.  info@dmaticsonline.com
 #
 # Changelog:
+#   v1.7  - one shot per handle: a name that already has a scored run (finished
+#           or busted) can't register again (name_taken); staff can free a
+#           single name via /admin/clear-name without wiping the whole board
 #   v1.6  - polish pass:
 #             * grabbing all 5 flags now auto-ends the run with a victory screen
 #               (score recorded automatically) - no more manual "record" button
@@ -236,6 +239,27 @@ def save_score(player, points, flags, seconds, finished):
             (player, points, flags, seconds, int(finished), datetime.utcnow().isoformat()),
         )
         con.commit()
+
+
+def name_taken(name):
+    """
+    One shot per handle: True once this name has a SCORED run on the board
+    (finished or busted — see record_score). A player who registers and then
+    just walks away without the clock running out never reaches `scores`, so
+    the name is still free — that is deliberate, not a loophole: we only want
+    to block a repeat *attempt*, not punish someone for closing the tab.
+
+    Compared in Python rather than with SQLite's LOWER(), which only folds
+    ASCII — a booth full of international visitors will type names LOWER()
+    gets wrong. The table is booth-sized (dozens to low hundreds of rows), so
+    scanning it per registration costs nothing worth optimising away.
+    """
+    norm = name.strip().casefold()
+    if not norm:
+        return False
+    with closing(db()) as con:
+        rows = con.execute("SELECT DISTINCT player FROM scores").fetchall()
+    return any((r["player"] or "").strip().casefold() == norm for r in rows)
 
 
 # --------------------------------------------------------------------------- #
@@ -770,6 +794,14 @@ def index():
         # not be enough to put script on the hall's largest display.
         name = re.sub(r"[<>&\"'`]", "", (request.form.get("player") or "")).strip()[:24]
         if name:
+            # One shot only: a handle that already has a scored run on the
+            # board (see name_taken) can't sign up again under the same name.
+            if name_taken(name):
+                flash("One shot only, no retries — that handle's already on the board. Pick another.")
+                return render_template("index.html", title=APP_TITLE,
+                                       minutes=max(1, round(GAME_SECONDS / 60)),
+                                       total_points=sum(POINTS.values()),
+                                       stage_count=len(FLAGS))
             # Bank whatever the previous occupant of this browser earned before
             # wiping it. A visitor who hits Back and types a new handle used to
             # delete an unsaved run outright — the commonest way a real score
@@ -1388,6 +1420,48 @@ def admin_reset():
         con.commit()
     app.logger.warning("[admin] leaderboard cleared — %s rows removed", removed)
     return jsonify(ok=True, cleared="redteam", rows=removed)
+
+
+@app.route("/admin/clear-name", methods=["POST"])
+def admin_clear_name():
+    """
+    Free up ONE handle without wiping the rest of the board.
+
+    "One shot per name" (see name_taken) means a typo, a legitimate re-run
+    DMATICS staff wants to allow, or a pre-show test run can otherwise only be
+    undone by nuking the whole leaderboard with /admin/reset. This does the
+    same job for a single player: same token gate, same timing-safe compare,
+    but it only deletes that name's scored rows — a real name check reads the
+    same way it always has for everyone else.
+    """
+    if not ADMIN_TOKEN:
+        return jsonify(ok=False,
+                       error="ADMIN_TOKEN is not set on the challenge; reset is disabled."), 503
+
+    supplied = request.headers.get("X-Admin-Token") or ""
+    body = request.get_json(silent=True) if request.is_json else None
+    body = body if isinstance(body, dict) else {}
+    if not supplied:
+        supplied = body.get("token") or ""
+    if not hmac.compare_digest(
+            hashlib.sha256(str(supplied).encode()).digest(),
+            hashlib.sha256(ADMIN_TOKEN.encode()).digest()):
+        time.sleep(1.0)
+        return jsonify(ok=False, error="bad token"), 401
+
+    player = str(body.get("player") or request.form.get("player") or "").strip()
+    if not player:
+        return jsonify(ok=False, error="no player name given"), 400
+    norm = player.casefold()
+
+    with closing(db()) as con:
+        rows = con.execute("SELECT id, player FROM scores").fetchall()
+        ids = [r["id"] for r in rows if (r["player"] or "").strip().casefold() == norm]
+        if ids:
+            con.executemany("DELETE FROM scores WHERE id = ?", [(i,) for i in ids])
+            con.commit()
+    app.logger.warning("[admin] cleared handle %r — %s row(s) removed", player, len(ids))
+    return jsonify(ok=True, player=player, rows=len(ids))
 
 
 @app.route("/health")
