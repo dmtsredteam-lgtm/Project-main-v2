@@ -28,3 +28,5 @@ _to_delete/
 _backup-*/
 .DS_Store
 Thumbs.db
+.env.*.bak
+.claude/

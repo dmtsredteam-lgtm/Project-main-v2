@@ -50,7 +50,16 @@ export async function POST(request) {
   if (!player) {
     return Response.json({ ok: false, error: 'No player name given.' }, { status: 400 });
   }
-  const game = ADMIN_GAMES.includes(body.game) ? body.game : 'redteam';
+  // A missing/mistyped `game` used to silently fall back to 'redteam' — the
+  // one branch with a real side effect on a different system (freeing a Red
+  // Team "one shot per name" slot). Reject it instead of guessing.
+  if (!ADMIN_GAMES.includes(body.game)) {
+    return Response.json({
+      ok: false,
+      error: `"game" must be one of ${ADMIN_GAMES.join(', ')}.`,
+    }, { status: 400 });
+  }
+  const game = body.game;
 
   const surfaces = game === 'redteam'
     ? await clearRedTeam(player)

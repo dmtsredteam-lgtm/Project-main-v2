@@ -106,7 +106,30 @@ VALID_PASS = "Summer2026"
 SVC_USER = "svc_backup"
 SVC_PASS = "Backup@2026!"
 
-GAME_SECONDS = int(os.environ.get("GAME_SECONDS", 600))  # 10 minutes
+def _env_number(name, default, cast=float, minimum=None):
+    """Read a tuning env var without letting a typo take the booth down.
+
+    A bare float()/int() on a malformed value used to raise at import time —
+    under `restart: unless-stopped` that is a crash loop, not a fallback. Falls
+    back to `default` (and clamps to `minimum` if given) on anything unparsable
+    or out of range, and says so once on stderr so a bad `.env` is still
+    noticeable without being fatal.
+    """
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        value = cast(raw)
+    except (TypeError, ValueError):
+        print(f"[config] {name}={raw!r} is not a valid number — using default {default}", file=sys.stderr)
+        return default
+    if minimum is not None and value < minimum:
+        print(f"[config] {name}={raw!r} is below the minimum {minimum} — using default {default}", file=sys.stderr)
+        return default
+    return value
+
+
+GAME_SECONDS = _env_number("GAME_SECONDS", 600, cast=int, minimum=30)  # 10 minutes
 
 # --------------------------------------------------------------------------- #
 #  The SOC defence - "blue team bites back"
@@ -132,15 +155,15 @@ GAME_SECONDS = int(os.environ.get("GAME_SECONDS", 600))  # 10 minutes
 # per stage sheds more heat than the stage costs and never trips a throttle; a
 # player who fumbles passwords or hammers the shell trips one every couple of
 # minutes. Raise it to make the SOC more forgiving when the queue is long.
-HEAT_DECAY_PER_SEC = float(os.environ.get("HEAT_DECAY", 0.9))
-HEAT_WATCH         = float(os.environ.get("HEAT_WATCH", 34))
-HEAT_THROTTLE      = float(os.environ.get("HEAT_THROTTLE", 62))
-HEAT_CONTAIN       = float(os.environ.get("HEAT_CONTAIN", 96))
-THROTTLE_SECONDS   = int(os.environ.get("THROTTLE_SECONDS", 12))
+HEAT_DECAY_PER_SEC = _env_number("HEAT_DECAY", 0.9, cast=float, minimum=0.0)
+HEAT_WATCH         = _env_number("HEAT_WATCH", 34, cast=float, minimum=1.0)
+HEAT_THROTTLE      = _env_number("HEAT_THROTTLE", 62, cast=float, minimum=1.0)
+HEAT_CONTAIN       = _env_number("HEAT_CONTAIN", 96, cast=float, minimum=1.0)
+THROTTLE_SECONDS   = _env_number("THROTTLE_SECONDS", 12, cast=int, minimum=1)
 # How many holds a session survives before the SOC stops holding and contains.
-THROTTLE_LIMIT     = int(os.environ.get("THROTTLE_LIMIT", 3))
+THROTTLE_LIMIT     = _env_number("THROTTLE_LIMIT", 3, cast=int, minimum=1)
 # Play this long without being held and the SOC forgives one strike.
-THROTTLE_FORGIVE_SECONDS = int(os.environ.get("THROTTLE_FORGIVE", 90))
+THROTTLE_FORGIVE_SECONDS = _env_number("THROTTLE_FORGIVE", 90, cast=int, minimum=1)
 
 # What each action costs. Tuned so a clean run never trips a throttle and a
 # noisy one trips it about twice before the hard rules would have caught them.
@@ -216,6 +239,19 @@ def init_db():
             created_at TEXT    NOT NULL
         )
     """)
+    # One row per handle, enforced by the database, not just by name_taken()'s
+    # read-before-write check. Two stations registering the identical handle in
+    # the same run window, or one double-click/retry on the final submit, could
+    # both pass that check and both INSERT — this closes the write side of the
+    # same race. Additive only: no column changes, existing rows untouched.
+    try:
+        con.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_scores_player_unique ON scores (player)")
+    except sqlite3.OperationalError as error:
+        # A pre-existing database with a genuine duplicate already in it (from
+        # before this fix) would fail here — log and keep running rather than
+        # take the booth down over historical rows.
+        print(f"[db] could not enforce one-row-per-player ({error}) — "
+              f"an existing duplicate is probably already on the board", file=sys.stderr)
     con.commit()
     con.close()
 
@@ -233,12 +269,20 @@ def save_score(player, points, flags, seconds, finished):
     # record_score into bust() — so the containment theatre ended in a 500 page
     # in front of the crowd instead of a red screen.
     with closing(db()) as con:
-        con.execute(
-            "INSERT INTO scores (player, points, flags, seconds, finished, created_at)"
-            " VALUES (?,?,?,?,?,?)",
-            (player, points, flags, seconds, int(finished), datetime.utcnow().isoformat()),
-        )
-        con.commit()
+        try:
+            con.execute(
+                "INSERT INTO scores (player, points, flags, seconds, finished, created_at)"
+                " VALUES (?,?,?,?,?,?)",
+                (player, points, flags, seconds, int(finished), datetime.utcnow().isoformat()),
+            )
+            con.commit()
+        except sqlite3.IntegrityError:
+            # The unique index on `player` caught a genuine duplicate write —
+            # two requests racing the same run (a double-click on the final
+            # submit, or two stations registering one handle in the same
+            # window) both reaching here. The first one already banked the
+            # score; this one is a harmless no-op, not a crash.
+            pass
 
 
 def name_taken(name):
@@ -508,10 +552,15 @@ def raise_heat(kind, detail=None, stage=None, amount=None, title=None):
         response.update(action="throttle", posture="THROTTLED", seconds=THROTTLE_SECONDS,
                         title="SOC RESPONSE — ADAPTIVE THROTTLE ENGAGED", reason=reason,
                         heat=round(p["heat"], 1))
-        hub.command(station, "throttle", response["title"], reason,
-                    seconds=THROTTLE_SECONDS, heat=heat)
+        # Detection before escalation — same rule as the contain path above:
+        # the wall must show the soc_throttle alert before the command band it
+        # triggers, or the effect (laptop held) reads as arriving before the
+        # cause (SOC noticed). Was ordered command-then-emit here; only contain
+        # had this right.
         hub.emit("soc_throttle", player=player, station=station, detail=reason,
                  heat=heat, posture="THROTTLED", stage=stage)
+        hub.command(station, "throttle", response["title"], reason,
+                    seconds=THROTTLE_SECONDS, heat=heat)
         session.modified = True
         return response
 
@@ -524,9 +573,11 @@ def raise_heat(kind, detail=None, stage=None, amount=None, title=None):
                   "Activity is now being recorded in full.")
         response.update(action="monitor", posture="WATCHED",
                         title="SOC ADVISORY — SESSION UNDER INSPECTION", reason=reason, seconds=0)
-        hub.command(station, "monitor", response["title"], reason, heat=heat)
+        # Same ordering fix as the throttle branch above: emit the detection
+        # before the command that acts on it.
         hub.emit("soc_monitor", player=player, station=station, detail=reason,
                  heat=heat, posture="WATCHED", stage=stage)
+        hub.command(station, "monitor", response["title"], reason, heat=heat)
         session.modified = True
 
     return response

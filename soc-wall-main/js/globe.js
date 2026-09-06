@@ -533,11 +533,26 @@ export function initGlobe(container, options = {}) {
     impact.mesh.material.color.setHex(critical ? 0xff496c : 0x54e7ff);
   }
 
+  /* Every arc used to end at HQ — a truthful "attacks converge on our
+   * perimeter" shot, but requested changed to read as global traffic
+   * criss-crossing the planet rather than one funnel. Destination is now a
+   * random pick from the same city pool the backbone nodes already use
+   * (Dubai included, so the perimeter story isn't gone — just no longer
+   * the only story), filtered to exclude anything within ~8 degrees of the
+   * origin so an arc is never a few-pixel stub next to its own start point. */
+  function pickDestination(originLat, originLon) {
+    const candidates = cityNodes.filter(([, lat, lon]) =>
+      Math.abs(lat - originLat) > 8 || Math.abs(lon - originLon) > 8);
+    const pool = candidates.length ? candidates : cityNodes;
+    const [, lat, lon] = pool[Math.floor(Math.random() * pool.length)];
+    return [lat, lon];
+  }
+
   function spawnAttack(alert) {
     if (!Number.isFinite(alert.srcLat) || !Number.isFinite(alert.srcLon)) return;
     const slot = arcs[nextArc];
     nextArc = (nextArc + 1) % arcs.length;
-    slot.points = greatCirclePoints([alert.srcLat, alert.srcLon], HQ);
+    slot.points = greatCirclePoints([alert.srcLat, alert.srcLon], pickDestination(alert.srcLat, alert.srcLon));
     slot.points.forEach((point, index) => point.toArray(slot.positions, index * 3));
     slot.line.geometry.attributes.position.needsUpdate = true;
     slot.line.geometry.setDrawRange(0, 0);

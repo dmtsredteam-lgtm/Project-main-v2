@@ -99,7 +99,7 @@ window.SOC_CONFIG = {
    * fastest way to repoint the screen mid-show without editing anything. */
   hub: {
     url: "",
-    sameOrigin: true,
+    sameOrigin: false,
     port: 7788,
   },
 

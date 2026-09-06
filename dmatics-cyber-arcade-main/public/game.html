@@ -481,7 +481,16 @@
   /* ---------------- MODAL ---------------- */
   .modal-bg{position:fixed;inset:0;background:rgba(6,3,12,.8);z-index:80;display:none;align-items:center;justify-content:center;padding:4vmin;backdrop-filter:blur(4px);}
   .modal-bg.on{display:flex;}
-  .modal{background:linear-gradient(180deg,var(--panel2),var(--panel));border:.16em solid var(--edge);border-radius:calc(var(--u)*1.3);max-width:min(540px,92vw);width:100%;max-height:86vh;overflow-y:auto;padding:calc(var(--u)*1.6);position:relative;animation:mpop .22s ease-out;}
+  .modal{background:linear-gradient(180deg,var(--panel2),var(--panel));border:.16em solid var(--edge);border-radius:calc(var(--u)*1.3);max-width:min(540px,92vw);width:100%;max-height:86vh;overflow-y:auto;padding:calc(var(--u)*1.6);position:relative;animation:mpop .22s ease-out;
+    scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--acc) 55%,transparent) transparent;}
+  /* .scroller (leaderboard lists) already got the thin themed scrollbar; this
+     modal (Booth Crew / Kiosk setup) was the one scrollable panel that got
+     missed, so it fell back to the browser's full-width native scrollbar —
+     jarring against the rest of the dark UI. Same treatment as .scroller. */
+  .modal::-webkit-scrollbar{width:.5em;}
+  .modal::-webkit-scrollbar-track{background:rgba(0,0,0,.25);border-radius:99px;}
+  .modal::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--acc) 55%,transparent);border-radius:99px;}
+  .modal::-webkit-scrollbar-thumb:active{background:var(--acc);}
   @keyframes mpop{from{transform:translateY(1.4em) scale(.96);opacity:0;}to{transform:none;opacity:1;}}
   .modal .x{position:absolute;top:.7em;right:.7em;width:2.4em;height:2.4em;border-radius:.6em;border:.14em solid var(--edge);background:none;color:var(--sub);font-size:calc(var(--u)*1.1);font-weight:800;cursor:pointer;font-family:inherit;}
   .modal .mkind{font-size:calc(var(--u)*.72);letter-spacing:.2em;font-weight:800;color:var(--acc);}
@@ -497,8 +506,12 @@
 
   #confetti{position:fixed;inset:0;pointer-events:none;z-index:66;}
   /* live per-game background field: blue-team modes for Phish/SOC, red-team for Breach */
-  #bgfx{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.55;transition:opacity .5s;}
-  body[data-game="breach"] #bgfx{opacity:.62;}
+  /* Was .55 (.62 for breach) — Red Team's equivalent full-screen canvas
+     (dm-matrix) runs at .92. Halving the canvas's own opacity on top of every
+     draw call already using a modest internal alpha (.08-.4) compounded into
+     a background that read as washed-out next to Red Team's bold rain. */
+  #bgfx{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.88;transition:opacity .5s;}
+  body[data-game="breach"] #bgfx{opacity:.94;}
 
   /* ---------------- HALL OF FAME (hub leaderboard) ---------------- */
   .lbsec{display:flex;flex-direction:column;min-height:0;flex:0 1 auto;
@@ -515,37 +528,54 @@
   .lblive.off{border-color:rgba(255,157,60,.5);color:#ffc48a;background:rgba(255,157,60,.1);}
   .lblive.off .dotl{background:var(--miss);}
   @keyframes lpulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(62,230,122,.6);}70%{opacity:.6;box-shadow:0 0 0 .5em rgba(62,230,122,0);}}
-  .lbtabs{display:flex;gap:.45em;flex-wrap:wrap;position:relative;}
-  .lbtab{background:rgba(244,247,255,.06);border:.14em solid var(--edge);color:var(--sub);font-weight:800;font-family:inherit;
-    font-size:calc(var(--u)*.78);letter-spacing:.06em;padding:.5em 1em;border-radius:99px;cursor:pointer;min-height:2.5em;transition:background .15s,color .15s,border-color .15s;}
-  .lbtab:active{transform:scale(.96);}
-  .lbtab.on{background:color-mix(in srgb,var(--acc) 22%,transparent);border-color:var(--acc);color:var(--ink);}
-  /* Height is set from JS to exactly three rows — a fixed CSS value can't do it,
-     because row height tracks --u and so drifts per screen size. Still flex-shrinks
-     below three on very short screens, and always scrolls. */
-  .lbbody{display:flex;flex-direction:column;gap:.4em;position:relative;
-    flex:1 1 auto;min-height:calc(var(--u)*3.4);padding-right:.35em;}
-  .lbrow{display:grid;grid-template-columns:calc(var(--u)*2.6) 1fr auto;align-items:center;gap:.7em;
-    padding:.6em .9em;border-radius:.6em;background:rgba(244,247,255,.045);font-weight:700;
-    animation:lbin .32s both;}
-  @keyframes lbin{from{opacity:0;transform:translateX(-.8em);}to{opacity:1;transform:none;}}
-  .lbrow:nth-child(1){animation-delay:.02s}.lbrow:nth-child(2){animation-delay:.06s}.lbrow:nth-child(3){animation-delay:.1s}
-  .lbrow:nth-child(4){animation-delay:.14s}.lbrow:nth-child(5){animation-delay:.18s}.lbrow:nth-child(6){animation-delay:.22s}
-  .lbrow:nth-child(7){animation-delay:.26s}.lbrow:nth-child(8){animation-delay:.3s}
-  .lbrow .pos{font-size:calc(var(--u)*.95);font-weight:800;color:var(--sub);text-align:center;}
-  .lbrow .who{font-size:calc(var(--u)*1.15);font-weight:800;color:var(--ink);letter-spacing:.07em;display:flex;align-items:center;gap:.5em;min-width:0;overflow:hidden;}
+  /* Three games, always visible side by side — no tab-switching to find your
+     score. Each column top-bordered and glowing in its game's own accent,
+     same shape language as the SOC wall's arena panel. Stacks to one column
+     under 680px so nothing scrolls sideways on a phone. */
+  /* Curved shelf: the three columns sit on the inside of a shallow cylinder
+     rather than a flat row — outer two angled inward and set back, centre
+     one forward — plus a slow, continuous, never-settling sway so the whole
+     panel reads as alive rather than a static screenshot. Requested as
+     "rotate like a video animation". (A name-cycling carousel through more
+     than 3 ranked names was tried alongside this and reverted — only the
+     true top 3 show now, see renderHall().) */
+  .lbcols{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1em;position:relative;
+    perspective:1400px;padding:0 .4em;}
+  @media(max-width:680px){.lbcols{grid-template-columns:1fr;perspective:none;}}
+  .lbcol{display:flex;flex-direction:column;gap:.5em;min-width:0;padding:.7em .8em .8em;
+    border-radius:.8em;border:.12em solid var(--edge);border-top-width:.22em;
+    background:rgba(244,247,255,.035);transform-style:preserve-3d;}
+  .lbcol.phish{border-top-color:#ff5d73;box-shadow:0 -.3em 1.4em -.6em rgba(255,93,115,.55);
+    animation:shelfL 9s ease-in-out infinite;}
+  .lbcol.soc{border-top-color:#8fe635;box-shadow:0 -.3em 1.4em -.6em rgba(143,230,53,.5);
+    animation:shelfM 9s ease-in-out infinite;}
+  .lbcol.breach{border-top-color:#b98cff;box-shadow:0 -.3em 1.4em -.6em rgba(185,140,255,.55);
+    animation:shelfR 9s ease-in-out infinite;}
+  @keyframes shelfL{0%,100%{transform:rotateY(9deg) translateZ(-10px) translateY(0);}50%{transform:rotateY(13deg) translateZ(-18px) translateY(-.3em);}}
+  @keyframes shelfM{0%,100%{transform:rotateY(0) translateZ(14px) translateY(-.2em);}50%{transform:rotateY(0) translateZ(20px) translateY(0);}}
+  @keyframes shelfR{0%,100%{transform:rotateY(-9deg) translateZ(-10px) translateY(0);}50%{transform:rotateY(-13deg) translateZ(-18px) translateY(-.3em);}}
+  @media(max-width:680px){.lbcol.phish,.lbcol.soc,.lbcol.breach{animation:none;transform:none;}}
+  .lbcolhead{font-size:calc(var(--u)*.82);font-weight:800;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink);opacity:.9;}
+  .lbcol.phish .lbcolhead{color:#ffa3b3;} .lbcol.soc .lbcolhead{color:#c6f18a;} .lbcol.breach .lbcolhead{color:#d5b8ff;}
+  .lbcolbody{display:flex;flex-direction:column;gap:.4em;position:relative;perspective:32em;}
+  .lbrow{display:grid;grid-template-columns:calc(var(--u)*2.2) 1fr auto;align-items:center;gap:.5em;
+    padding:.55em .7em;border-radius:.55em;background:rgba(244,247,255,.045);font-weight:700;
+    backface-visibility:hidden;transform-origin:50% 0%;animation:lbin .42s cubic-bezier(.2,.85,.35,1.1) both;}
+  /* Cylindrical roll-in, requested: each row now unrolls out of the column
+     header like a slot-machine reel settling — rotateX around the top edge
+     rather than the old flat slide-and-fade. */
+  @keyframes lbin{from{opacity:0;transform:rotateX(-78deg) translateY(-.5em);}to{opacity:1;transform:rotateX(0) translateY(0);}}
+  .lbrow:nth-child(1){animation-delay:.03s}.lbrow:nth-child(2){animation-delay:.11s}.lbrow:nth-child(3){animation-delay:.19s}
+  .lbrow .pos{font-size:calc(var(--u)*.9);font-weight:800;color:var(--sub);text-align:center;}
+  .lbrow .who{font-size:calc(var(--u)*1.02);font-weight:800;color:var(--ink);letter-spacing:.05em;display:flex;align-items:center;gap:.5em;min-width:0;overflow:hidden;}
   .lbrow .who .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .lbrow .gm{font-size:calc(var(--u)*.64);letter-spacing:.1em;font-weight:800;padding:.22em .6em;border-radius:99px;
-    background:rgba(244,247,255,.08);color:var(--sub);letter-spacing:.08em;}
-  .lbrow .gm.phish{background:rgba(255,93,115,.16);color:#ffa3b3;}
-  .lbrow .gm.soc{background:rgba(143,230,53,.16);color:#c6f18a;}
-  .lbrow .gm.breach{background:rgba(185,140,255,.18);color:#d5b8ff;}
-  .lbrow .pts{font-size:calc(var(--u)*1.2);font-weight:800;color:var(--amber);letter-spacing:.02em;}
+  .lbrow .pts{font-size:calc(var(--u)*1.08);font-weight:800;color:var(--amber);letter-spacing:.02em;}
   .lbrow.top1{background:linear-gradient(90deg,rgba(255,210,63,.2),rgba(255,210,63,.05));border:.12em solid rgba(255,210,63,.5);}
   .lbrow.top1 .pos{color:#ffd23f;}
   .lbrow.top2{background:linear-gradient(90deg,rgba(226,232,240,.15),rgba(226,232,240,.04));}
   .lbrow.top3{background:linear-gradient(90deg,rgba(205,127,50,.18),rgba(205,127,50,.04));}
-  .lbempty{text-align:center;color:var(--sub);font-size:calc(var(--u)*.95);padding:calc(var(--u)*2) 1em;font-weight:600;line-height:1.5;}
+  .lbempty{text-align:center;color:var(--sub);font-size:calc(var(--u)*.8);padding:1em .5em;font-weight:600;line-height:1.5;}
   .setrow{display:flex;align-items:center;gap:.7em;flex-wrap:wrap;justify-content:space-between;}
   .setlbl{font-size:calc(var(--u)*.85);font-weight:700;color:var(--sub);}
   .setopts{display:flex;gap:.4em;flex-wrap:wrap;}
@@ -673,7 +703,7 @@
     <h1 class="title flick l-el" style="--d:.26s">THE CYBER <span class="hl neon">ARCADE</span></h1>
     <p class="tag l-el" style="--d:.36s">Three games. <b>60 seconds</b> each. Spot the phish, run the SOC shift,
       think like an attacker — then review every answer to see how the pros play.</p>
-    <button class="enterbtn l-el" style="--d:.46s" onclick="ARCADE.goHub()"><span class="ics" data-ic="play"></span>ENTER THE ARCADE</button>
+    <button class="enterbtn l-el" style="--d:.46s" onclick="enterArcade()"><span class="ics" data-ic="play"></span>ENTER THE ARCADE</button>
     <div class="statstrip l-el" style="--d:.54s">
       <div><b>3</b>GAMES</div>
       <div><b>60s</b>PER ROUND</div>
@@ -688,13 +718,7 @@
           <button class="lbrefresh" id="lbrefresh" onclick="ARCADE.sync(true)" aria-label="Refresh the leaderboard" title="Refresh"><i>⟳</i></button>
         </span>
       </div>
-      <div class="lbtabs" id="lbtabs">
-        
-        <button class="lbtab on" onclick="ARCADE.hall('phish',this)">PHISH HUNTER</button>
-        <button class="lbtab" onclick="ARCADE.hall('soc',this)">ALERT RUSH</button>
-        <button class="lbtab" onclick="ARCADE.hall('breach',this)">BREACH POINT</button>
-      </div>
-      <div class="lbbody scroller" id="lbbody"></div>
+      <div class="lbcols" id="lbbody"></div>
       <div class="lbnote" id="lbnote"></div>
     </div>
 
@@ -1484,6 +1508,19 @@ function nextScenario(){
 const BG=(()=>{
  const cv=$('bgfx');const ctx=cv.getContext('2d');
  let mode='land',W=0,H=0,raf=null,t=0,parts=[],cols=[],nodes=[],edges=[],rings=[],logs=[],arcs=[],glb=null,feed=[];
+ // Glitch sweep, ported from Red Team's matrix-bg.js maybeGlitch() — the one
+ // signature move that background didn't have. Same trigger rate, themed to
+ // whichever game's palette is active instead of hardcoded red.
+ let glitch={active:false,y:0,life:0};
+ function glitchTick(p){
+  if(!glitch.active&&Math.random()<.008){glitch.active=true;glitch.y=Math.random()*H;glitch.life=6+Math.floor(Math.random()*8);}
+  if(glitch.active){
+   const h=3+Math.random()*5;
+   ctx.fillStyle=hexa(p.b,.22);ctx.fillRect(0,glitch.y,W,h);
+   ctx.fillStyle=hexa(p.c,.12);ctx.fillRect(0,glitch.y+h,W,h*.6);
+   glitch.y+=2;if(--glitch.life<=0)glitch.active=false;
+  }
+ }
  const PAL={
   land:{a:'#39e6d4',b:'#ff5d73',c:'#ffd23f'},
   hub:{a:'#39e6d4',b:'#ff5d73',c:'#ffd23f'},
@@ -1510,6 +1547,13 @@ const BG=(()=>{
     y:(i+.5)*(H/Math.max(6,Math.round(H/70))),o:.06+Math.random()*.16,
     w:40+Math.random()*180,sp:.2+Math.random()*.7,x:Math.random()*W}));
   logs=Array.from({length:Math.max(5,Math.round(H/64))},(_,i)=>({y:(i+.5)*(H/Math.max(5,Math.round(H/64))),x:Math.random()*W,sp:.35+Math.random()*1.5,w:30+Math.random()*150,o:.1+Math.random()*.35}));
+  // The globe is circular and centred — on a wide screen it fills the middle
+  // third and leaves both side margins flat black. Two decoration passes
+  // were tried there and both read as generic filler unrelated to the booth.
+  // drawLand's margin pass below instead reuses the three games' own motifs
+  // (envelopes, code rain, heartbeat) that cols/parts/logs already drive —
+  // no new state needed here, just filtering what build() already made by
+  // x-position when drawLand draws it.
  }
  function spark(){return{x:Math.random()*W,y:Math.random()*H,vy:-(.15+Math.random()*.5),vx:(Math.random()-.5)*.35,s:1.2+Math.random()*3.2,o:.15+Math.random()*.5,ph:Math.random()*6.3};}
  function hexa(hex,a){const n=parseInt(hex.slice(1),16);return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';}
@@ -1563,8 +1607,12 @@ const BG=(()=>{
    for(let i=0;i<c.len;i++){
     const y=c.y-i*15;if(y<-15||y>H+15)continue;
     const fade=(1-i/c.len);
-    ctx.fillStyle=i===0?hexa('#ffffff',.55*fade+.25):hexa(p.a,.42*fade);
-    ctx.fillText(GLYPH[(Math.floor(t*.12)+i*7+Math.floor(c.x))%GLYPH.length],c.x,y);
+    // Head glyph now glows white-hot like Red Team's matrix rain instead of
+    // a flat fill — the trail behind it stays a plain fade, same as before.
+    if(i===0){ctx.save();ctx.shadowColor=p.a;ctx.shadowBlur=9;ctx.fillStyle=hexa('#ffffff',.7*fade+.3);
+     ctx.fillText(GLYPH[(Math.floor(t*.12)+Math.floor(c.x))%GLYPH.length],c.x,y);ctx.restore();}
+    else{ctx.fillStyle=hexa(p.a,.42*fade);
+     ctx.fillText(GLYPH[(Math.floor(t*.12)+i*7+Math.floor(c.x))%GLYPH.length],c.x,y);}
    }});
   ctx.textAlign='start';
   // attack-path graph lighting up hop by hop
@@ -1594,8 +1642,10 @@ const BG=(()=>{
    ctx.fillStyle=hexa(p.a,f.o);ctx.fillRect(f.x,f.y,f.w,1);});
 
   // globe: outline, latitudes, and longitudes that rotate
+  ctx.save();ctx.shadowColor=p.a;ctx.shadowBlur=14;
   ctx.beginPath();ctx.arc(cx,cy,r,0,6.3);
-  ctx.strokeStyle=hexa(p.a,.34);ctx.lineWidth=1.3;ctx.stroke();
+  ctx.strokeStyle=hexa(p.a,.55);ctx.lineWidth=1.6;ctx.stroke();
+  ctx.restore();
   for(let i=1;i<5;i++){
    const y=cy+(i-2.5)*r*.42,rr=Math.sqrt(Math.max(0,r*r-(y-cy)*(y-cy)));
    ctx.beginPath();ctx.ellipse(cx,y,rr,rr*.2,0,0,6.3);
@@ -1611,8 +1661,9 @@ const BG=(()=>{
   ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,6.3);ctx.clip();
   ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,sw-.55,sw);ctx.closePath();
   ctx.fillStyle=hexa(p.c,.09);ctx.fill();
+  ctx.shadowColor=p.c;ctx.shadowBlur=10;
   ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(sw)*r,cy+Math.sin(sw)*r);
-  ctx.strokeStyle=hexa(p.c,.42);ctx.lineWidth=1.3;ctx.stroke();ctx.restore();
+  ctx.strokeStyle=hexa(p.c,.7);ctx.lineWidth=1.6;ctx.stroke();ctx.restore();
 
   // inbound attacks, arcing in from off-screen and dying at the perimeter
   if(t%22===0&&arcs.length<18){
@@ -1632,13 +1683,16 @@ const BG=(()=>{
    const tail=Math.max(0,a.k-.34);
    ctx.beginPath();
    for(let i=0;i<=16;i++){const [x,y]=at(tail+(a.k-tail)*i/16);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
-   ctx.strokeStyle=hexa(p.b,a.hit?0:.48);ctx.lineWidth=1.6;ctx.stroke();
+   ctx.save();ctx.shadowColor=p.b;ctx.shadowBlur=8;
+   ctx.strokeStyle=hexa(p.b,a.hit?0:.75);ctx.lineWidth=1.8;ctx.stroke();
    if(!a.hit){const [hx,hy]=at(a.k);
-    ctx.beginPath();ctx.arc(hx,hy,2.6,0,6.3);ctx.fillStyle=hexa(p.b,.95);ctx.fill();}
+    ctx.beginPath();ctx.arc(hx,hy,2.9,0,6.3);ctx.fillStyle=hexa(p.b,1);ctx.fill();}
    else{const o=1-a.hit/34;
+    ctx.shadowColor=p.c;ctx.shadowBlur=16*o;
     ctx.beginPath();ctx.arc(a.tx,a.ty,3+a.hit*1.5,0,6.3);
-    ctx.strokeStyle=hexa(p.c,o*.8);ctx.lineWidth=1.7;ctx.stroke();
-    ctx.beginPath();ctx.arc(a.tx,a.ty,2.4,0,6.3);ctx.fillStyle=hexa(p.c,o*.8);ctx.fill();}
+    ctx.strokeStyle=hexa(p.c,o*.9);ctx.lineWidth=2;ctx.stroke();
+    ctx.beginPath();ctx.arc(a.tx,a.ty,2.6,0,6.3);ctx.fillStyle=hexa(p.c,o*.9);ctx.fill();}
+   ctx.restore();
   });
 
   // slow drifting sparks for depth
@@ -1649,6 +1703,7 @@ const BG=(()=>{
  function frame(){
   t++;ctx.clearRect(0,0,W,H);const p=PAL[mode]||PAL.hub;
   if(mode==='land')drawLand(p);else if(mode==='phish')drawPhish(p);else if(mode==='soc')drawSoc(p);else if(mode==='breach')drawBreach(p);else drawHub(p);
+  glitchTick(p);
   raf=requestAnimationFrame(frame);
  }
  function start(){if(REDUCED)return;if(!raf)raf=requestAnimationFrame(frame);}
@@ -1720,36 +1775,33 @@ const ARCADE=(function(){
  function setTheme(t){document.body.dataset.game=t;BG.setMode(t);}
 
  /* ---- Hall of Fame (hub leaderboard across every game) ---- */
- let hallTab='phish';
+/* ---- Hall of Fame (hub leaderboard across every game) ---- */
+ // Longer labels for the admin "remove one player" board picker; also now
+ // doubles as the Hall of Fame column headers.
+ // Still used for the hub telemetry title (score() below) — not a leftover.
  const GLABEL={phish:'PHISH',soc:'SOC',breach:'BREACH'};
- // Longer labels for the admin "remove one player" board picker — GLABEL above
- // stays short for the Hall of Fame tab chips and never carries 'redteam'
- // (hallTab is always phish/soc/breach/all), so this is a separate map rather
- // than growing that one into something the tab renderer wasn't built for.
  const GLABEL_ADM={phish:'Phish Hunter',soc:'Alert Rush',breach:'Breach Point',redteam:'Red Team'};
  let clearGame='phish';
- function hall(which,btn){
-   if(which){hallTab=which;}
-   if(btn){[...$('lbtabs').children].forEach(b=>b.classList.toggle('on',b===btn));}
-   renderHall();
- }
+/* All three games side by side, always — a visitor used to have to tap
+    between three tabs to find out where they landed, and two of the three
+    boards were invisible at any moment. One row of columns, same shape as
+    the SOC wall's arena panel, so the two surfaces read as one system.
+    A continuous rotating carousel (up to 8 ranked names cycling through a
+    3-row window) was tried and reverted — only the true 1st/2nd/3rd should
+    ever show, each with its own medal badge, nothing cycling past them. */
+ const MEDAL=['🥇','🥈','🥉'];
  function renderHall(){
    const body=$('lbbody');if(!body)return;
-   let rows=[];
-   if(hallTab==='all'){
-     ['phish','soc','breach'].forEach(g=>loadBoardFor(g).forEach(r=>rows.push({n:r.n,s:r.s,g:g})));
-     rows=bestPerName(rows,8);          // a player appears once, at their best game
-   } else {
-     rows=bestPerName(loadBoardFor(hallTab),8).map(r=>({n:r.n,s:r.s,g:hallTab}));
-   }
-   if(!rows.length){
-     body.innerHTML='<div class="lbempty">No scores yet — be the first name on the board.<br>Pick a game above and play 60 seconds.</div>';
-   } else {
-     body.innerHTML=rows.map((r,i)=>'<div class="lbrow'+(i===0?' top1':i===1?' top2':i===2?' top3':'')+'">'+
-       '<span class="pos">'+String(i+1).padStart(2,'0')+'</span>'+
-       '<span class="who"><span class="nm">'+esc(r.n)+'</span>'+(hallTab==='all'?'<span class="gm '+r.g+'">'+GLABEL[r.g]+'</span>':'')+'</span>'+
-       '<span class="pts">'+r.s+'</span></div>').join('');
-   }
+   body.innerHTML=['phish','soc','breach'].map(g=>{
+     const rows=bestPerName(loadBoardFor(g),3);
+     const list=rows.length
+       ? rows.map((r,i)=>'<div class="lbrow'+(i===0?' top1':i===1?' top2':' top3')+'">'+
+           '<span class="pos">'+MEDAL[i]+'</span>'+
+           '<span class="who"><span class="nm">'+esc(r.n)+'</span></span>'+
+           '<span class="pts">'+r.s+'</span></div>').join('')
+       : '<div class="lbempty">No scores yet</div>';
+     return '<div class="lbcol '+g+'"><div class="lbcolhead">'+GLABEL_ADM[g]+'</div><div class="lbcolbody">'+list+'</div></div>';
+   }).join('');
    // Everything derived from the boards is refreshed HERE, so a board change can
    // never leave one number stale while another updates (the old bug: the server
    // board landed, the Hall of Fame redrew, and TOP SCORE stayed on a dash).
@@ -1757,7 +1809,6 @@ const ARCADE=(function(){
    const lb=$('ls-best');if(lb)lb.textContent=best>0?best.toLocaleString():'—';
    ['phish','soc','breach'].forEach(g=>{const b=loadBoardFor(g),el=$(META[g].hi);
      if(el)el.textContent=b.length?b[0].s:'—';});
-   fitBoard();
    const online=apiBase()!==null;
    const warn=online&&durable!==true;   // unknown or in-memory — don't imply scores are safe
    $('lblive').classList.toggle('off',!online||warn);
@@ -1772,16 +1823,6 @@ const ARCADE=(function(){
         : 'Contacting the shared board…')
        +(lastSync?' Updated '+ago(lastSync)+'.':'');
  }
- // Cap the board at three visible rows, measured from what actually rendered.
- function fitBoard(){
-   const body=$('lbbody');if(!body)return;
-   const rows=body.querySelectorAll('.lbrow');
-   if(rows.length<4){body.style.maxHeight='';return;}
-   const rh=rows[0].offsetHeight;
-   const gap=Math.max(0,rows[1].offsetTop-rows[0].offsetTop-rh);
-   body.style.maxHeight=(rh*3+gap*2)+'px';
- }
- addEventListener('resize',()=>fitBoard(),{passive:true});
  function ago(ts){const s=Math.round((Date.now()-ts)/1000);
    return s<5?'just now':s<60?s+'s ago':Math.round(s/60)+'m ago';}
 
@@ -2099,7 +2140,7 @@ const ARCADE=(function(){
    removeCard(a);hud();if(live.length<2)spawn();}
  function expire(a){removeCard(a);
    history.push({q:a.t,detail:a.sev+' · '+a.src+' — '+a.d,your:'— (ran out of time)',correct:(a.threat?'ESCALATE — real threat':'DISMISS — false positive'),status:'miss',reason:a.clue,act:a.act});
-   if(a.threat){missed++;score=Math.max(0,score-100);slaHit(12);toast('bad','💥 BREACH! Ignored: '+a.t);popPts('BREACH!','#ff5d73');SFX.boom();buzz([80,50,120]);document.body.classList.add('shake');setTimeout(()=>document.body.classList.remove('shake'),340);}else{slaHit(3);}hud();}
+   if(a.threat){missed++;score=Math.max(0,score-100);slaHit(12);toast('bad','💥 BREACH! Ignored: '+a.t);popPts('BREACH!','#ff5d73');SFX.boom();buzz([80,50,120]);document.body.classList.add('shake');setTimeout(()=>document.body.classList.remove('shake'),340);}else{slaHit(3);}hud();if(live.length<2)spawn();}
  function slaHit(n){sla=Math.max(0,sla-n);$('slabar').style.width=sla+'%';$('slapct').textContent=sla+'%';$('slabar').style.background=sla>60?'linear-gradient(90deg,#3ee67a,#8fe635)':sla>30?'linear-gradient(90deg,#ffd23f,#f97316)':'linear-gradient(90deg,#e2354f,#97182f)';}
 
  /* BREACH */
@@ -2373,7 +2414,7 @@ const ARCADE=(function(){
  }
  function closeReview(){show('end');}
 
- return{sync,hint,adminReset,adminClearName,pickClearGame,setMusic,setSfx,goLand,goHub,toggleSfx,toggleMusic,how,openSetup,closeModal,start,begin,act,saveScore,openReview,closeReview,hall,_phish:phishAnswer,_hi:refreshHi};
+ return{sync,hint,adminReset,adminClearName,pickClearGame,setMusic,setSfx,goLand,goHub,toggleSfx,toggleMusic,how,openSetup,closeModal,start,begin,act,saveScore,openReview,closeReview,_phish:phishAnswer,_hi:refreshHi};
 })();
 
 $('btnLegit').addEventListener('click',()=>ARCADE._phish(false));
@@ -2382,7 +2423,7 @@ $('btnPhish').addEventListener('click',()=>ARCADE._phish(true));
 /* Every button, chip, cabinet and node gives audible feedback. One delegated
    listener rather than a handler per control, so nothing can be missed. */
 addEventListener('pointerdown',(e)=>{
-  const el=e.target&&e.target.closest&&e.target.closest('button,.node,.cab .play,.lbtab,.navchip,.setupchip');
+  const el=e.target&&e.target.closest&&e.target.closest('button,.node,.cab .play,.navchip,.setupchip');
   if(el&&!el.disabled)SFX.click();
 },true);
 
@@ -2430,29 +2471,27 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)return;
   if($('land').classList.contains('on')||$('hub').classList.contains('on'))ARCADE.sync(false);});
 
 /* ============ BOOT SEQUENCE ============
-   A short SOC console cold-start before the landing screen resolves. It plays
-   once per page load and any tap, click or key skips it instantly — nobody at a
-   booth should ever be made to wait for an animation. Skipped outright for
-   visitors who ask for reduced motion. */
-(function boot(){
+   A short console cold-start typing effect, reused in two places:
+     1. Once per page load, before the landing screen resolves (SOC framing).
+     2. On ENTER THE ARCADE, before the game-select ("hub") screen shows
+        (arcade framing) — same visual, different content per the ask.
+   Any tap, click or key skips it instantly — nobody at a booth should ever be
+   made to wait for an animation. Skipped outright for reduced motion, and
+   `onDone` still runs immediately so the screen transition it gates always
+   happens either way. */
+function playBoot(lines,onDone){
   const box=$('bootbox'),seq=$('bootseq');
-  if(!box||!seq)return;
-  const LINES=[
-    ['DMATICS SOC \u00b7\u00b7 NODE DXB-01','ONLINE','ok'],
-    ['threat intelligence feed','SYNCED','ok'],
-    ['phishing corpus \u00b7\u00b7 14,600 samples','LOADED','ok'],
-    ['alert pipeline \u00b7\u00b7 11,500 events','LOADED','ok'],
-    ['attack surface map \u00b7\u00b7 9,600 boards','LOADED','ok'],
-    ['hall of fame','READY','ok'],
-    ['analyst on duty','YOU','warn']
-  ];
+  const after=onDone||function(){};
+  if(!box||!seq){after();return;}
+  box.innerHTML='';
+  seq.classList.remove('off');
   let done=false;
   function finish(){
     if(done)return;done=true;
     seq.classList.add('off');
-    setTimeout(()=>seq.remove(),650);
     removeEventListener('pointerdown',finish);
     removeEventListener('keydown',finish);
+    after();
   }
   addEventListener('pointerdown',finish,{passive:true});
   addEventListener('keydown',finish);
@@ -2460,8 +2499,8 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)return;
   let i=0;
   (function step(){
     if(done)return;
-    if(i>=LINES.length){setTimeout(finish,520);return;}
-    const [label,state,cls]=LINES[i++];
+    if(i>=lines.length){setTimeout(finish,520);return;}
+    const [label,state,cls]=lines[i++];
     const row=document.createElement('div');
     row.className='bl';
     row.innerHTML='<span style="opacity:.55">&gt;</span> '+label+
@@ -2471,7 +2510,29 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)return;
     setTimeout(step,190);
   })();
   setTimeout(finish,2600); // hard ceiling, whatever happens
-})();
+}
+const BOOT_LINES=[
+  ['DMATICS SOC ·· NODE DXB-01','ONLINE','ok'],
+  ['threat intelligence feed','SYNCED','ok'],
+  ['phishing corpus ·· 14,600 samples','LOADED','ok'],
+  ['alert pipeline ·· 11,500 events','LOADED','ok'],
+  ['attack surface map ·· 9,600 boards','LOADED','ok'],
+  ['hall of fame','READY','ok'],
+  ['analyst on duty','YOU','warn']
+];
+// Same rig, framed as "you're the one walking through the door" rather than
+// "the console just came up" -- three games named instead of the SOC's own
+// telemetry, since this plays on the way IN to them.
+const ENTER_LINES=[
+  ['DMATICS ARCADE ·· STATION IPAD-01','ONLINE','ok'],
+  ['phish hunter ·· 14,600 samples','LOADED','ok'],
+  ['alert rush ·· 11,500 events','LOADED','ok'],
+  ['breach point ·· 9,600 boards','LOADED','ok'],
+  ['leaderboard sync','LIVE','ok'],
+  ['operator','YOU','warn']
+];
+playBoot(BOOT_LINES);
+function enterArcade(){playBoot(ENTER_LINES,()=>ARCADE.goHub());}
 </script>
 </body>
 </html>

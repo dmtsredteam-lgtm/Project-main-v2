@@ -23,6 +23,11 @@ services:
       - HUB_URL=${HUB_URL:-}
       # Must match ADMIN_TOKEN on the hub, or leave both blank.
       - HUB_TOKEN=${HUB_TOKEN:-}
+      # The CLEAR EVERY LEADERBOARD button's own admin auth. Must be identical
+      # to ADMIN_TOKEN on the hub and the arcade, or the reset button 503s with
+      # "ADMIN_TOKEN is not set" under this container even though .env has it —
+      # compose only forwards vars listed here.
+      - ADMIN_TOKEN=${ADMIN_TOKEN:?set ADMIN_TOKEN in .env — see .env.example}
 
       # Default station id when a browser has not been given one with
       # ?station=LAPTOP-02 on the landing page. One container can serve both

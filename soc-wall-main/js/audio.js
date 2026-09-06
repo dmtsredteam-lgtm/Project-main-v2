@@ -229,8 +229,7 @@ export function createSocAudio(options = {}) {
   /** Station released, alarm over. A falling triad, so the room can relax. */
   function cleared() {
     const context = ready();
-    if (!context) return false;
-    lastCueAt = Date.now();
+    if (!context || !allow(false)) return false;
     [880, 659, 523].forEach((frequency, index) => {
       voice(context, { frequency, duration: 0.22, gain: 0.22, type: "triangle", at: index * 0.13 });
     });

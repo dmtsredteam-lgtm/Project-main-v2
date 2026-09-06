@@ -108,7 +108,10 @@ const randomItem = (items) => items[Math.floor(Math.random() * items.length)];
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 function demoAlerts() {
-  const count = 1 + Math.floor(Math.random() * 2);
+  // Busier globe, on request: 2-4 new events per poll instead of 1-2. Pure
+  // ambient-telemetry tuning (visual density only) — does not touch scoring,
+  // the leaderboard, or any real hub-sourced event.
+  const count = 2 + Math.floor(Math.random() * 3);
   return Array.from({ length: count }, (_, index) => {
     const rule = randomItem(rules);
     const country = randomItem(countries);

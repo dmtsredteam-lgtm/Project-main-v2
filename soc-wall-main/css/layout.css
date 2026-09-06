@@ -174,7 +174,13 @@
 
 /* Five boards, always on screen. Overall is widest because it is the one a
    visitor scans first and the only board that spans all four games. */
-.arena-board { display: grid; grid-template-columns: 1.45fr 1fr 1fr 1fr 1fr; gap: 10px; min-height: 0; }
+/* Was 5 tracks (1.45fr wide "overall" + four 1fr) from when the board had a
+ * 5th "overall" column. That board was removed from arena.js's ORDER/META
+ * (deliberately — no 1000-point normalised score), but this grid definition
+ * never got updated: 4 real .arena-col children still lay out into a 5-track
+ * grid, leaving the last 1fr track completely empty — a visible gap on the
+ * right at any width. Four equal tracks match what actually renders now. */
+.arena-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; min-height: 0; }
 
 .arena-col { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; min-width: 0; padding: 11px 13px 12px; overflow: hidden; border-radius: 10px; border: 1px solid rgba(255,255,255,.05); border-top: 2px solid rgb(var(--accent-rgb, var(--cyan-rgb))); background: rgba(255,255,255,.02); cursor: pointer; transition: background-color .22s ease, border-color .22s ease; }
 .arena-col.cyan { --accent-rgb: var(--cyan-rgb); }
@@ -384,7 +390,15 @@ body.is-alarm .topbar { border-color: rgba(var(--critical-rgb), .35); }
 /* The globe lost a third of its height to the arena, so the furniture around
    it gives ground — it is the piece people photograph. */
 .geo-readout { top: 74px; right: 52px; width: 252px; min-height: 0; padding: 11px 13px; }
-.geo-meta-grid { display: none; }
+/* `.geo-readout .geo-meta-grid` (line 111) sets display:grid at specificity
+ * 0,2,0. A bare `.geo-meta-grid { display: none }` here is only 0,1,0 — it
+ * loses to the earlier, more specific rule regardless of source order, so
+ * the meta grid never actually hid at the 1080 design height. That left
+ * geo-readout its full, uncollapsed content height, tall enough to run into
+ * operation-card sitting below it (confirmed live: HOST/CLASS/LEVEL/RISK/
+ * STATUS visibly overlapping the operation card's title). Matching the
+ * parent-scoped selector restores the density pass's actual intent. */
+.geo-readout .geo-meta-grid { display: none; }
 .origin-panel { width: 252px; padding: 11px 13px; }
 .operation-card { width: 280px; padding: 12px 14px; }
 .hero-heading { top: 14px; }

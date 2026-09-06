@@ -101,7 +101,15 @@ def _ensure_worker() -> None:
 def _submit(path: str, payload: dict) -> None:
     if not enabled():
         return
-    _ensure_worker()
+    try:
+        _ensure_worker()
+    except Exception:
+        # Starting the daemon thread is the one call in this module that could
+        # still raise (e.g. thread-count exhaustion after hours on show floor
+        # hardware). This module's whole contract is "it never raises" — drop
+        # the event rather than take the view down with it.
+        stats["dropped"] += 1
+        return
     try:
         _queue.put_nowait((path, payload))
     except queue.Full:

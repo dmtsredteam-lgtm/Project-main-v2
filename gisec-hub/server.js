@@ -189,9 +189,8 @@ function loadState() {
     for (const game of GAME_KEYS) {
       const rows = saved.scores?.[game];
       if (!Array.isArray(rows)) continue;
-      state.scores[game] = rows
-        .filter((row) => row && typeof row.n === 'string' && Number.isFinite(row.s) && Number.isFinite(row.t))
-        .slice(0, MAX_RAW);
+      state.scores[game] = capRawScores(rows
+        .filter((row) => row && typeof row.n === 'string' && Number.isFinite(row.s) && Number.isFinite(row.t)));
     }
     /* Explicit reads, not Object.assign: a crafted file could otherwise reshape
      * state.totals with arbitrary keys, including one named __proto__. */
@@ -314,18 +313,22 @@ function cleanStation(value) {
   return cleaned || 'UNKNOWN';
 }
 
-/* Escape, do not strip.
+/* Clip, do not encode.
  *
- * This used to delete < and > and leave & " ' alone, which is not escaping —
- * it is mangling. A legitimate title of `user <admin@x> flagged` rendered as
- * `user admin@x flagged`, and the only thing standing between an attacker's
- * `title` and the wall's innerHTML was the incidental absence of one character.
- * The wall now escapes on its own side too; this makes it correct on both. */
-const HTML_ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+ * This used to HTML-entity-escape here as well as on the wall — belt and
+ * braces, in theory. In practice the wall already escapes at every innerHTML
+ * site (js/escape.js, imported everywhere one of these fields is rendered
+ * that way) and reads the rest straight into `.textContent`, which never
+ * decodes entities. Escaping twice meant `&` came out as `&amp;amp;` on an
+ * innerHTML panel, and any of `& < > " '` came out completely literal
+ * (`&#39;`, `&lt;`) on a `.textContent` one — invisible today only because no
+ * copy string in app.py happens to contain those characters yet. The wall's
+ * own escaper is the actual boundary (verified present at every innerHTML
+ * site); this just stops fighting it. Length clip stays — it is not a
+ * security control, just a sane ceiling on what one event can carry. */
 const MAX_STATIONS = 64;
 const POSTURES = ['CLEAR', 'WATCHED', 'THROTTLED', 'CONTAINED', 'COMPROMISED'];
-const escapeText = (value, max = 160) =>
-  String(value ?? '').slice(0, max).replace(/[&<>"']/g, (character) => HTML_ENTITIES[character]);
+const escapeText = (value, max = 160) => String(value ?? '').slice(0, max);
 
 let eventSequence = 0;
 const nextId = (prefix) => `${prefix}-${Date.now().toString(36)}-${(eventSequence += 1).toString(36)}`;
@@ -382,7 +385,9 @@ function normaliseEvent(input) {
       // The only field that used to bypass every sanitiser — unbounded length,
       // any type, and written straight into state that is re-broadcast forever.
       posture: POSTURES.includes(input.posture) ? input.posture : null,
-      game: GAMES[input.game] ? input.game : null,
+      // Object.hasOwn, not truthiness — same reasoning as `kind` above:
+      // GAMES['constructor'] etc. are truthy inherited values.
+      game: Object.hasOwn(GAMES, input.game) ? input.game : null,
       points: Number.isFinite(Number(input.points)) ? Number(input.points) : null,
       stage: escapeText(input.stage, 40) || null,
     },
@@ -572,6 +577,38 @@ function ingestEvent(input) {
   return alert;
 }
 
+/* Cap a game's raw-score rows without ever evicting a champion (a player's
+ * own best row). A plain `.slice(0, MAX_RAW)` after this filter looked safe —
+ * every champion "survives" the filter — but once the number of DISTINCT
+ * players alone exceeds MAX_RAW, every one of them is a champion (their only
+ * row is their best row), and the slice then truncates by insertion order,
+ * silently dropping real players. Measured live: 5000 distinct players, one
+ * score each — the oldest 4,600 vanished. Shared between ingestScore() (new
+ * scores arriving) and loadState() (restoring from disk on restart), because
+ * the disk path had the exact same blind slice and would have re-truncated
+ * back down to 400 every time the hub restarted, even after this fix landed
+ * in ingest. Only non-champion filler rows (repeat plays that didn't beat a
+ * player's own best) are ever capped; the array can exceed MAX_RAW when
+ * there are genuinely more than MAX_RAW distinct players on one game — a few
+ * thousand small JSON rows costs a Node process nothing. */
+function capRawScores(rows) {
+  if (rows.length <= MAX_RAW) return rows;
+  const keep = new Map();
+  for (const row of rows) {
+    if (!row || typeof row.s !== 'number' || typeof row.n !== 'string') continue;
+    const key = row.n.toUpperCase();
+    const current = keep.get(key);
+    if (!current || row.s > current.s) keep.set(key, row);
+  }
+  const champions = new Set(keep.values());
+  const survivors = rows.filter((row) => champions.has(row));
+  for (const row of rows) {
+    if (survivors.length >= MAX_RAW) break;
+    if (!champions.has(row)) survivors.push(row);
+  }
+  return survivors;
+}
+
 function ingestScore(input) {
   const game = Object.hasOwn(GAMES, input.game) ? input.game : null;
   if (!game) return null;
@@ -588,31 +625,10 @@ function ingestScore(input) {
     },
   };
   state.scores[game].unshift(entry);
-  /* Evict the WEAKEST row, not the oldest.
-   *
-   * This used to be `length = MAX_RAW`, i.e. keep the newest 400 and drop the
-   * tail. boardFor() derives the whole leaderboard from this window, so a
-   * record set on day one was silently deleted once 400 later plays arrived —
-   * measured: CHAMPION on 9,999 gone after 400 submissions, and because
-   * overallBoard() normalises every game to its own top score, losing the
-   * record retroactively rescored every player in the cross-game board too.
-   * 400 plays of one arcade game across a four-day show is a Tuesday. */
-  if (state.scores[game].length > MAX_RAW) {
-    const keep = new Map();       // best row per player, always survives
-    for (const row of state.scores[game]) {
-      if (!row || typeof row.s !== 'number' || typeof row.n !== 'string') continue;
-      const key = row.n.toUpperCase();
-      const current = keep.get(key);
-      if (!current || row.s > current.s) keep.set(key, row);
-    }
-    const champions = new Set(keep.values());
-    const survivors = state.scores[game].filter((row) => champions.has(row));
-    for (const row of state.scores[game]) {
-      if (survivors.length >= MAX_RAW) break;
-      if (!champions.has(row)) survivors.push(row);
-    }
-    state.scores[game] = survivors.slice(0, MAX_RAW);
-  }
+  // Evict the WEAKEST row, not the oldest — never a champion. See
+  // capRawScores() above for why a plain length cap broke this exact
+  // guarantee once distinct players alone passed MAX_RAW.
+  state.scores[game] = capRawScores(state.scores[game]);
   persist();
   // `scores` / `persistent` are the arcade's expected reply shape; the wall reads
   // `leaderboard`. Both in one response so either client can post here.
