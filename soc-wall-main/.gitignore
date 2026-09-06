@@ -37,7 +37,12 @@ yarn-error.log*
 
 # typescript
 next-env.d.ts
-/dist/
+# NOT /dist/ — this is a Vite project, not Next.js, and dist/ here is the
+# committed, pre-built SOC wall (see root README: "dist/ is committed
+# pre-built" so the booth needs no rebuild toolchain). That line was stale
+# boilerplate and silently made every rebuilt asset file untracked — the
+# cause of a real, live bug: a fresh clone got an index.html referencing
+# hashed asset files that git had never actually stored.
 /.wrangler/
 /outputs/
 /work/
