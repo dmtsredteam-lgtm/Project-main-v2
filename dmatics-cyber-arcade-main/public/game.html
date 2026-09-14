@@ -676,10 +676,18 @@
     text-align:left;font-size:calc(var(--u)*.66);letter-spacing:.1em;color:var(--sub);
     font-weight:800;padding:.5em .6em;border-bottom:.14em solid var(--edge);white-space:nowrap;}
   .fbtable thead th:first-child{width:2.6em;text-align:center;}
+  /* SCORE/POINTS is always the last column, in both the 3-col (Phish/Alert/
+     Breach) and 5-col (Red Team) tables. Its VALUES are right-aligned below
+     (td.pts) so the digits line up ones-under-ones — without also
+     right-aligning this header, "SCORE"/"POINTS" sat at the left edge of the
+     column while every value under it sat at the right edge: header and data
+     never over one another. That's the misalignment being reported — this is
+     the fix, not a photo angle. */
+  .fbtable thead th:last-child{text-align:right;}
   .fbtable td{padding:.6em .6em;font-weight:700;color:var(--ink);white-space:nowrap;}
   .fbtable td.who{white-space:normal;word-break:break-word;}
   .fbtable td.pos{text-align:center;color:var(--sub);font-variant-numeric:tabular-nums;}
-  .fbtable td.pts{color:var(--amber);font-weight:800;text-align:right;}
+  .fbtable td.pts{color:var(--amber);font-weight:800;text-align:right;font-variant-numeric:tabular-nums;}
   .fbtable tbody tr:nth-child(odd){background:rgba(244,247,255,.045);}
   .fbtable tbody tr.top1{background:linear-gradient(90deg,rgba(255,210,63,.18),rgba(255,210,63,.04));}
   .fbtable tbody tr.top2{background:linear-gradient(90deg,rgba(226,232,240,.14),rgba(226,232,240,.03));}
@@ -1906,6 +1914,12 @@ const ARCADE=(function(){
     3-row window) was tried and reverted — only the true 1st/2nd/3rd should
     ever show, each with its own medal badge, nothing cycling past them. */
  const MEDAL=['🥇','🥈','🥉'];
+ // How many players' best scores each arcade game actually keeps (locally and
+ // server-synced). The Hall of Fame only ever shows the top 3 regardless, and
+ // the end-of-round mini board only shows the top 10 — both unaffected — but
+ // the FULL LEADERBOARDS page can only ever show as many rows as this keeps
+ // around, so it has to be raised here, not just in that page's own render cap.
+ const BOARD_CAP=50;
  function renderHall(){
    const body=$('lbbody');if(!body)return;
    body.innerHTML=['phish','soc','breach'].map(g=>{
@@ -1966,7 +1980,7 @@ const ARCADE=(function(){
    const GS=['phish','soc','breach'];
    const boards=await Promise.all(GS.map(g=>fetchServerBoard(g)));
    let got=false;
-   GS.forEach((g,i)=>{if(boards[i]){localPersist(g,bestPerName(boards[i],10));got=true;}});
+   GS.forEach((g,i)=>{if(boards[i]){localPersist(g,bestPerName(boards[i],BOARD_CAP));got=true;}});
    if(got)lastSync=Date.now();
    syncing=false;if(btn)btn.classList.remove('spin');
    renderHall();
@@ -2014,7 +2028,7 @@ const ARCADE=(function(){
    // one so this page shows exactly what the Hall of Fame shows, never less.
    const server=await fetchServerBoard(g);
    const local=loadBoardFor(g);
-   return bestPerName(server?mergeBoards(local,server):local,10);
+   return bestPerName(server?mergeBoards(local,server):local,BOARD_CAP);
  }
  async function refreshFullBoard(manual){
    const g=boardsGame,btn=$('fbrefresh');
@@ -2431,7 +2445,7 @@ const ARCADE=(function(){
    });
    return [...best.values()].sort((x,y)=>y.s-x.s).slice(0,cap||10);
  }
- function mergeBoards(a,b){return bestPerName([].concat(a||[],b||[]),10);}
+ function mergeBoards(a,b){return bestPerName([].concat(a||[],b||[]),BOARD_CAP);}
  /* Array.isArray, not just JSON.parse: a truncated or hand-edited value can
     parse to a number, a string or an object, and every caller then does .map
     or .sort on it and takes the whole board render down with it. */
@@ -2579,7 +2593,7 @@ const ARCADE=(function(){
    // Tag the row we just added rather than matching on score, so a tie with an
    // existing player can't highlight somebody else's name as YOU.
    let b=loadBoard().map(r=>({n:r.n,s:r.s,t:r.t}));
-   b.push({n:name,s:mine,me:true,t:Date.now()});b=bestPerName(b,10);localPersist(game,b);
+   b.push({n:name,s:mine,me:true,t:Date.now()});b=bestPerName(b,BOARD_CAP);localPersist(game,b);
    $('initialsRow').style.display='none';renderBoard(true);renderHall();SFX.good();
    if(b.length&&b[0].s===mine)confettiBurst(themeColors());
    // Put the player on the big screen's unified board alongside the red team.
