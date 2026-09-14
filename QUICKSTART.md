@@ -25,7 +25,11 @@ someone presses reset at the end of day one and only part of the show clears.
 ```bash
 ./setup-env.sh --show      # see the configuration any time, secrets masked
 ./setup-env.sh --force     # start over (logs everyone out)
+./setup-env.sh --static    # pick your own admin password instead of a random one
 ```
+
+Windows has the same three: `setup-env.bat show`, `setup-env.bat force`, `setup-env.bat static`
+(and they combine — `setup-env.bat force static`).
 
 ---
 

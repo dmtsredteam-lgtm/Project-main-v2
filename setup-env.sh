@@ -10,6 +10,14 @@
 #   ./setup-env.sh                  create anything missing, leave the rest alone
 #   ./setup-env.sh --show           print what is currently set (secrets masked)
 #   ./setup-env.sh --force          regenerate everything (invalidates live sessions)
+#   ./setup-env.sh --static         create anything missing, but prompt for the
+#                                    admin password instead of generating one
+#   ./setup-env.sh --force --static regenerate everything AND prompt for the
+#                                    admin password (combine the two above)
+#
+# --static only changes ADMIN_PASSWORD. SECRET_KEY and ADMIN_TOKEN are still
+# generated randomly — nobody types those by hand, so there is no benefit to
+# making them memorable and a real benefit to keeping them unguessable.
 #
 # Nothing here is committed: .gitignore keeps all three out of git, and
 # push-to-github.sh refuses to push if one of them is not ignored.
@@ -32,13 +40,20 @@ RT_ENV="DMATICS-Red-Team-Challenge-main/.env"
 ARCADE_ENV="dmatics-cyber-arcade-main/.env.local"
 
 MODE="create"
-case "${1:-}" in
-  --show)  MODE="show" ;;
-  --force) MODE="force" ;;
-  -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-  "") ;;
-  *) echo "unknown option: $1  (--show, --force)"; exit 1 ;;
-esac
+STATIC=0
+for arg in "$@"; do
+  case "$arg" in
+    --show)    MODE="show" ;;
+    --force)   MODE="force" ;;
+    --static)  STATIC=1 ;;
+    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "unknown option: $arg  (--show, --force, --static)"; exit 1 ;;
+  esac
+done
+if [ "$STATIC" = "1" ] && [ "$MODE" = "show" ]; then
+  echo "--static has no effect with --show — it only applies when (re)writing the files"
+  exit 1
+fi
 
 # --- what address will the other machines use? -------------------------------
 # The hub, the challenge and the arcade all talk to each other. On one machine
@@ -74,6 +89,24 @@ mask() {
   [ -z "$v" ] && { printf '%s(not set)%s' "$DIM" "$R"; return; }
   [ "${#v}" -le 8 ] && { printf '%s' "********"; return; }
   printf '%s…%s %s(%d chars)%s' "${v:0:6}" "${v: -4}" "$DIM" "${#v}" "$R"
+}
+
+# Prompts (twice, hidden input) for the admin password instead of generating
+# one. Used only with --static. Prints nothing but the finished value on
+# stdout, so it can be captured with $(...) like secret() is.
+read_static_password() {
+  local p1 p2
+  while true; do
+    printf '  %sEnter the static admin password:%s ' "$B" "$R" >&2
+    read -rs p1 </dev/tty; printf '\n' >&2
+    if [ -z "$p1" ]; then bad "password cannot be empty" >&2; continue; fi
+    if [ "${#p1}" -lt 6 ]; then bad "use at least 6 characters" >&2; continue; fi
+    printf '  Confirm password: ' >&2
+    read -rs p2 </dev/tty; printf '\n' >&2
+    if [ "$p1" != "$p2" ]; then bad "passwords did not match — try again" >&2; continue; fi
+    printf '%s' "$p1"
+    return 0
+  done
 }
 
 # --------------------------------------------------------------------------- #
@@ -142,7 +175,12 @@ fi
 
 SECRET_KEY="$(secret 32)"
 ADMIN_TOKEN="$(secret 24)"
-ADMIN_PASSWORD="$(secret 9)"
+if [ "$STATIC" = "1" ]; then
+  head2 "Static admin password"
+  ADMIN_PASSWORD="$(read_static_password)"
+else
+  ADMIN_PASSWORD="$(secret 9)"
+fi
 
 head2 "Writing"
 

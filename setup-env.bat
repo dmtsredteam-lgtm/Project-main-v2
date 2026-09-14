@@ -1,94 +1,208 @@
 @echo off
+setlocal EnableDelayedExpansion
 
-setlocal
+:: ---------------------------------------------------------------------------
+:: Create the three .env files, once, with secrets that agree with each other.
+:: Windows equivalent of setup-env.sh - same three files, same rule that
+:: ADMIN_TOKEN must be identical in all three.
+::
+::   setup-env.bat                 create anything missing, leave the rest alone
+::   setup-env.bat show            print what is currently set
+::   setup-env.bat force           regenerate everything (invalidates live sessions)
+::   setup-env.bat static          create anything missing, but prompt for the
+::                                  admin password instead of generating one
+::   setup-env.bat force static    regenerate everything AND prompt for the password
+::
+:: static only changes ADMIN_PASSWORD. SECRET_KEY and ADMIN_TOKEN are still
+:: generated randomly - nobody types those by hand, so there is no benefit to
+:: making them memorable and a real benefit to keeping them unguessable.
+::
+:: Requires PowerShell (built into Windows 10/11 and Server 2016+) for random
+:: secrets and for masking the password prompt. Nothing here is committed:
+:: .gitignore keeps all three .env files out of git.
+:: ---------------------------------------------------------------------------
 
+set "MODE=create"
+set "STATIC=0"
 
-for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /i "IPv4"') do (
+:parseargs
+if "%~1"=="" goto argsdone
+if /i "%~1"=="show"    set "MODE=show"
+if /i "%~1"=="/show"   set "MODE=show"
+if /i "%~1"=="force"   set "MODE=force"
+if /i "%~1"=="/force"  set "MODE=force"
+if /i "%~1"=="static"  set "STATIC=1"
+if /i "%~1"=="/static" set "STATIC=1"
+if /i "%~1"=="/h"      goto usage
+if /i "%~1"=="/help"   goto usage
+if /i "%~1"=="-h"      goto usage
+shift
+goto parseargs
 
-    set IP=%%a
+:usage
+echo   setup-env.bat                 create anything missing, leave the rest alone
+echo   setup-env.bat show            print what is currently set
+echo   setup-env.bat force           regenerate everything (invalidates live sessions)
+echo   setup-env.bat static          create anything missing, but prompt for the
+echo                                  admin password instead of generating one
+echo   setup-env.bat force static    regenerate everything AND prompt for the password
+exit /b 0
 
-    goto :found
-
+:argsdone
+if "%STATIC%"=="1" if "%MODE%"=="show" (
+  echo static has no effect with show - it only applies when writing the files
+  exit /b 1
 )
 
-
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /i "IPv4"') do (
+    set "IP=%%a"
+    goto :found
+)
 :found
-
-set IP=%IP: =%
-
-
+set "IP=%IP: =%"
 echo Using IP: %IP%
 
+set "HUB_ENV=gisec-hub\.env"
+set "RT_ENV=DMATICS-Red-Team-Challenge-main\.env"
+set "ARCADE_ENV=dmatics-cyber-arcade-main\.env.local"
+
+if "%MODE%"=="show" goto :doshow
+goto :writecheck
+
+:doshow
+echo.
+echo Current configuration
+if exist "%HUB_ENV%" (echo   [OK] hub        %HUB_ENV%) else (echo   [--] hub        %HUB_ENV%  - not created)
+if exist "%RT_ENV%" (echo   [OK] red team   %RT_ENV%) else (echo   [--] red team   %RT_ENV%  - not created)
+if exist "%ARCADE_ENV%" (echo   [OK] arcade     %ARCADE_ENV%) else (echo   [--] arcade     %ARCADE_ENV%  - not created)
+echo.
+echo   This simple version does not mask/compare secrets like setup-env.sh --show
+echo   does - open the three files if you need to check ADMIN_TOKEN matches.
+exit /b 0
+
+:writecheck
+if exist "%HUB_ENV%" if exist "%RT_ENV%" if exist "%ARCADE_ENV%" if not "%MODE%"=="force" (
+  echo.
+  echo Already set up - leaving existing files alone.
+  echo   To see what is in them:      setup-env.bat show
+  echo   To start over from scratch:  setup-env.bat force
+  exit /b 0
+)
+
+if "%MODE%"=="force" (
+  echo.
+  echo Regenerating - new secrets invalidate any run in progress and log every player out.
+  set /p "REPLY=Continue? [y/N] "
+  if /i not "!REPLY!"=="y" if /i not "!REPLY!"=="yes" (
+    echo Nothing changed.
+    exit /b 0
+  )
+)
 
 if not exist gisec-hub mkdir gisec-hub
-
 if not exist DMATICS-Red-Team-Challenge-main mkdir DMATICS-Red-Team-Challenge-main
-
 if not exist dmatics-cyber-arcade-main mkdir dmatics-cyber-arcade-main
 
+:: --- random secrets (48 hex chars = 24 bytes, matching setup-env.sh) --------
+for /f "usebackq delims=" %%t in (`powershell -NoProfile -Command "-join ((1..48) | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) })"`) do set "ADMIN_TOKEN=%%t"
+for /f "usebackq delims=" %%s in (`powershell -NoProfile -Command "-join ((1..64) | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) })"`) do set "SECRET_KEY=%%s"
 
-set ADMIN_TOKEN=gisec-demo-token
-
-set ADMIN_PASSWORD=booth123
-
-set SECRET_KEY=gisec-secret-key
-
-
-(
-
-echo PORT=7788
-
-echo ADMIN_TOKEN=%ADMIN_TOKEN%
-
-echo ADMIN_USER=booth
-
-echo ADMIN_PASSWORD=%ADMIN_PASSWORD%
-
-echo REDTEAM_URL=http://%IP%:8000
-
-) > gisec-hub\.env
-
-
-(
-
-echo SECRET_KEY=%SECRET_KEY%
-
-echo PORT=8000
-
-echo STATION_ID=LAPTOP-01
-
-echo STATIONS=LAPTOP-01,LAPTOP-02
-
-echo HUB_URL=http://%IP%:7788
-
-echo ADMIN_TOKEN=%ADMIN_TOKEN%
-
-) > DMATICS-Red-Team-Challenge-main\.env
-
-
-(
-
-echo ADMIN_USER=booth
-
-echo ADMIN_PASSWORD=%ADMIN_PASSWORD%
-
-echo ADMIN_TOKEN=%ADMIN_TOKEN%
-
-echo GISEC_HUB=http://%IP%:7788
-
-echo REDTEAM_URL=http://%IP%:8000
-
-echo NEXT_PUBLIC_GISEC_HUB=http://%IP%:7788
-
-) > dmatics-cyber-arcade-main\.env.local
-
+if "%STATIC%"=="1" (
+  call :readpassword
+  if "!ADMIN_PASSWORD!"=="" (
+    echo No password entered - nothing written.
+    exit /b 1
+  )
+) else (
+  for /f "usebackq delims=" %%p in (`powershell -NoProfile -Command "-join ((1..9) | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) })"`) do set "ADMIN_PASSWORD=%%p"
+)
 
 echo.
+echo Writing
 
-echo Done.
+(
+echo # GISEC Arena Hub - generated by setup-env.bat
+echo # Not committed. Do not paste this file anywhere.
+echo.
+echo PORT=7788
+echo.
+echo # Wipes the arena board. MUST match ADMIN_TOKEN in the other two files.
+echo ADMIN_TOKEN=%ADMIN_TOKEN%
+echo.
+echo # What the crew types into the arcade's CLEAR EVERY LEADERBOARD panel.
+echo ADMIN_USER=booth
+echo ADMIN_PASSWORD=%ADMIN_PASSWORD%
+echo.
+echo # So the hub can clear the red team's board as well as its own.
+echo REDTEAM_URL=http://%IP%:8000
+) > "%HUB_ENV%"
+echo   [OK] %HUB_ENV%
 
-echo Hub URL: http://%IP%:7788
+(
+echo # DMATICS Red Team Challenge - generated by setup-env.bat
+echo # Not committed. Do not paste this file anywhere.
+echo.
+echo SECRET_KEY=%SECRET_KEY%
+echo.
+echo PORT=8000
+echo STATION_ID=LAPTOP-01
+echo STATIONS=LAPTOP-01,LAPTOP-02
+echo.
+echo HUB_URL=http://%IP%:7788
+echo.
+echo # Enables POST /admin/reset. MUST match ADMIN_TOKEN in the other two files.
+echo ADMIN_TOKEN=%ADMIN_TOKEN%
+) > "%RT_ENV%"
+echo   [OK] %RT_ENV%
 
-echo RedTeam URL: http://%IP%:8000
+(
+echo # DMATICS Cyber Arcade - generated by setup-env.bat
+echo # Not committed. Do not paste this file anywhere.
+echo.
+echo ADMIN_USER=booth
+echo ADMIN_PASSWORD=%ADMIN_PASSWORD%
+echo.
+echo # MUST match ADMIN_TOKEN in the other two files.
+echo ADMIN_TOKEN=%ADMIN_TOKEN%
+echo.
+echo GISEC_HUB=http://%IP%:7788
+echo REDTEAM_URL=http://%IP%:8000
+echo NEXT_PUBLIC_GISEC_HUB=http://%IP%:7788
+) > "%ARCADE_ENV%"
+echo   [OK] %ARCADE_ENV%
 
+echo.
+echo The one credential you have to remember
+echo.
+echo   Admin username   booth
+echo   Admin password   %ADMIN_PASSWORD%
+echo.
+echo   That is what you type into the arcade's CLEAR EVERY LEADERBOARD panel.
+echo   It is also saved in %ARCADE_ENV% and %HUB_ENV% if you lose it.
+echo.
+echo Next: npm start
+echo.
 pause
+exit /b 0
+
+:: ---------------------------------------------------------------------------
+:: Prompts (twice, hidden input via PowerShell) for the static admin password.
+:: Sets ADMIN_PASSWORD in the caller. Retries on empty/too-short/mismatched.
+:: ---------------------------------------------------------------------------
+:readpassword
+for /f "usebackq delims=" %%p in (`powershell -NoProfile -Command "$s=Read-Host -AsSecureString 'Enter the static admin password'; [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))"`) do set "PW1=%%p"
+if "!PW1!"=="" (
+  echo   password cannot be empty
+  goto :readpassword
+)
+if "!PW1:~5!"=="" (
+  echo   use at least 6 characters
+  goto :readpassword
+)
+for /f "usebackq delims=" %%p in (`powershell -NoProfile -Command "$s=Read-Host -AsSecureString 'Confirm password'; [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))"`) do set "PW2=%%p"
+if not "!PW1!"=="!PW2!" (
+  echo   passwords did not match - try again
+  goto :readpassword
+)
+set "ADMIN_PASSWORD=!PW1!"
+exit /b 0

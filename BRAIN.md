@@ -366,7 +366,7 @@ Beyond the four project directories:
 | `runbook.html` | the show-day artefact — architecture, defence loop, checklist, audit (section L) |
 | `GISEC-2026-INTEGRATION.md` | the original integration design note |
 | `QUICKSTART.md` | four commands, the whole thing on one machine |
-| `setup-env.sh` | writes the three `.env` files with a matching `ADMIN_TOKEN`; `--show` audits, `--force` regenerates |
+| `setup-env.sh` (`setup-env.bat` on Windows) | writes the three `.env` files with a matching `ADMIN_TOKEN`; `--show` audits, `--force` regenerates, `--static` prompts for the admin password instead of generating one |
 | `run-redteam.sh` | starts the challenge, creating `.venv` on first run — Kali/Debian 12+ refuse system-wide pip (PEP 668) |
 | `check.sh` | five-second booth health check — surfaces up, wired together, reset button viable, LAN addresses reachable. Exits non-zero on a problem |
 | `start.mjs` | the cross-platform launcher — this is the one that runs everywhere. Loads `gisec-hub/.env` itself |
