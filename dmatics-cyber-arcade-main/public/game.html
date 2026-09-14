@@ -32,7 +32,7 @@
   body[data-game="land"]{--acc:#39e6d4;--acc2:#ff5d73;--accdk:#1a8f80;--neon:#39e6d4;--bg:#05070d;--panel:#101a2b;--panel2:#16233a;}
   body[data-game="hub"]{--acc:#39e6d4;--acc2:#ff5d73;--accdk:#1a8f80;--neon:#39e6d4;--bg:#0a0713;--panel:#1a1330;--panel2:#221844;}
 
-  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:manipulation;}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:manipulation;-webkit-touch-callout:none;}
   /* iOS Safari inflates text inside blocks it decides are "wide", independently
      of any CSS you wrote. On a laptop nothing happens; on an iPhone or iPad the
      card copy grows, the cards grow with it, and the grid pushes out of a screen
@@ -95,6 +95,26 @@
   @supports (height:100svh){
     #land{--u:clamp(7px,min(2.8svmin,1.35svh),26px);}
     #hub{--u:clamp(7px,min(2.8svmin,1.6svh),26px);}
+  }
+  /* iPad Air 13" (M3) in landscape — the device this arcade actually runs on —
+     sits in a blind spot of the formula above: min(2.8vmin, N·vh) picks the vh
+     side whenever the screen is wide-but-short, and on this exact shape
+     (~1366×1024pt) it landed around 16px, a good third smaller than every
+     other screen in the app, which all cap at 26px. That made the CHOOSE YOUR
+     GAME menu's cabinets and buttons render visibly undersized on this
+     specific device, and a small button is exactly what makes a tap land on
+     a neighbour instead of the target — which reads as "the touch doesn't
+     register" even though every tap technically worked.
+     Scoped to #hub only (the game-picker menu) and to this device's shape, so
+     the Hall of Fame on the landing screen (#land) is untouched, and phones /
+     the short-landscape-phone rule below are unaffected. */
+  @media (min-width:1100px) and (min-height:820px) and (max-height:1400px) and (orientation:landscape){
+    #hub{--u:clamp(18px,2.4vh,26px);}
+  }
+  @supports (height:100svh){
+    @media (min-width:1100px) and (min-height:820px) and (max-height:1400px) and (orientation:landscape){
+      #hub{--u:clamp(18px,2.4svh,26px);}
+    }
   }
   /* The menu never shows a scrollbar — the cabinets are sized to the screen. If a
      device is so short that they still don't fit, it scrolls vertically only, with
@@ -202,8 +222,9 @@
     color:var(--sub);font-size:calc(var(--u)*.7);letter-spacing:.2em;font-weight:800;opacity:.6;}
 
   /* ---- arcade menu header (second screen) ---- */
-  .menuhead{display:flex;align-items:center;justify-content:space-between;gap:.8em;
+  .menuhead{display:flex;align-items:center;justify-content:space-between;gap:.8em;flex-wrap:wrap;
     width:100%;margin-bottom:calc(var(--u)*.6);}
+  .menuhead .navgroup{flex-wrap:wrap;}
   .backchip{background:rgba(244,247,255,.07);border:.14em solid var(--edge);color:var(--ink);
     font-weight:800;font-family:inherit;font-size:calc(var(--u)*.78);letter-spacing:.14em;
     padding:.6em 1em;border-radius:99px;cursor:pointer;min-height:2.6em;}
@@ -613,6 +634,47 @@
   @keyframes lspin{to{transform:rotate(360deg);}}
   .lbnote{font-size:calc(var(--u)*.74);color:#6b5f8c;text-align:center;font-weight:600;letter-spacing:.04em;position:relative;}
 
+  /* ---------------- FULL LEADERBOARDS (own page, all games, every rank) ----------------
+     Reuses .lblive/.dotl/.lbrefresh from the Hall of Fame above and .hubwrap for the page
+     shell, so this page reads as the same system rather than a bolted-on extra screen. */
+  .boardswrap{gap:calc(var(--u)*.9);}
+  .gametabs{display:flex;gap:.5em;flex-wrap:wrap;justify-content:center;width:100%;}
+  .gtab{background:rgba(244,247,255,.06);border:.14em solid var(--edge);color:var(--sub);font-family:inherit;
+    font-weight:800;font-size:calc(var(--u)*.78);letter-spacing:.05em;padding:.65em 1.15em;border-radius:99px;
+    cursor:pointer;min-height:2.6em;}
+  .gtab.on{background:color-mix(in srgb,var(--acc) 26%,transparent);border-color:var(--acc);color:var(--ink);}
+  .gtab:active{transform:scale(.96);}
+  .fullboardpanel{width:100%;max-width:min(920px,96vw);flex:1 1 auto;min-height:0;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));border:.16em solid var(--edge);
+    border-radius:calc(var(--u)*1.2);padding:calc(var(--u)*1) calc(var(--u)*1.1);
+    display:flex;flex-direction:column;gap:calc(var(--u)*.7);box-shadow:0 .5em 0 rgba(0,0,0,.35);}
+  .fbhead{display:flex;align-items:center;justify-content:flex-end;gap:.6em;flex:0 0 auto;}
+  /* .fbtablewrap — not .fullboardpanel above — is the actual scroll region, and
+     it carries the .scroller class (in the HTML) for the app's own themed thin
+     scrollbar. Giving overflow-x:auto AND overflow-y:auto to the SAME element
+     on purpose: setting only overflow-x and leaving overflow-y at its default
+     'visible' makes the browser silently promote overflow-y to 'auto' too (a
+     CSS Overflow spec quirk), which — tried first — produced a second, hidden,
+     unstyled scroll container with the plain OS scrollbar instead of this
+     one. Declaring both here keeps there being exactly one scroller, doing
+     both jobs: vertical when there are more rows than fit, horizontal as a
+     narrow-phone fallback for the 5-column Red Team table. */
+  .fbtablewrap{flex:1 1 auto;min-height:0;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .fbtable{width:100%;border-collapse:collapse;font-size:calc(var(--u)*.92);}
+  .fbtable thead th{position:sticky;top:0;z-index:1;background:var(--panel2);
+    text-align:left;font-size:calc(var(--u)*.66);letter-spacing:.1em;color:var(--sub);
+    font-weight:800;padding:.5em .6em;border-bottom:.14em solid var(--edge);white-space:nowrap;}
+  .fbtable thead th:first-child{width:2.6em;text-align:center;}
+  .fbtable td{padding:.6em .6em;font-weight:700;color:var(--ink);white-space:nowrap;}
+  .fbtable td.who{white-space:normal;word-break:break-word;}
+  .fbtable td.pos{text-align:center;color:var(--sub);font-variant-numeric:tabular-nums;}
+  .fbtable td.pts{color:var(--amber);font-weight:800;text-align:right;}
+  .fbtable tbody tr:nth-child(odd){background:rgba(244,247,255,.045);}
+  .fbtable tbody tr.top1{background:linear-gradient(90deg,rgba(255,210,63,.18),rgba(255,210,63,.04));}
+  .fbtable tbody tr.top2{background:linear-gradient(90deg,rgba(226,232,240,.14),rgba(226,232,240,.03));}
+  .fbtable tbody tr.top3{background:linear-gradient(90deg,rgba(205,127,50,.16),rgba(205,127,50,.03));}
+  .fbempty{text-align:center;color:var(--sub);font-size:calc(var(--u)*.85);padding:2em 1em;font-weight:600;line-height:1.5;}
+
   /* ===== v3.1 ARCADE ANIMATIONS ===== */
   /* screen transitions (not the game screen — it owns the shake transform) */
   .screen.on:not(#game){animation:screenIn .34s ease both;}
@@ -675,6 +737,14 @@
 @media (pointer:coarse) and (min-height:600px){
   .play,.how{min-height:44px;}
   .how{min-width:44px;}
+  /* Same 44px floor, extended to every other tappable chip in the app. Most
+     were already close on a normally-sized --u, but never guaranteed — and a
+     hit target a few px under 44 is exactly what makes an otherwise-fine tap
+     miss on a touchscreen now and then. Pure floor: nothing shrinks, nothing
+     moves, a control that's already bigger is left alone. */
+  .backchip,.setupchip,.navchip,.opt,.gtab,.lbrefresh,.savebtn,.reviewbtn,
+  .enterbtn,.bigbtn,.btn2,.hintbtn,.ans,.node,.mgo{min-height:44px;}
+  .lbrefresh{min-width:44px;}
 }
 </style>
 </head>
@@ -732,7 +802,7 @@
       <p class="footpunch">Stop Reacting. <span>Start Commanding.</span></p>
       <p class="footmeta">ISO/IEC 27001:2022 · Dubai DESC · Est. 2009</p>
       <p class="footmeta">T: <a href="tel:+97143977748">+971 4 3977748</a>
-        · <a href="https://www.dmaticsonline.com" target="_blank" rel="noopener">www.dmaticsonline.com</a></p>
+        · <a href="https://dmaticsonline.com/" target="_blank" rel="noopener">dmaticsonline.com</a></p>
     </div>
   </div>
 </div>
@@ -741,7 +811,10 @@
 <div class="screen" id="hub">
   <div class="hubwrap">
     <div class="menuhead">
-      <button class="backchip" onclick="ARCADE.goLand()"><span class="ics" data-ic="back"></span>HOME</button>
+      <div class="navgroup">
+        <button class="backchip" onclick="ARCADE.goLand()"><span class="ics" data-ic="back"></span>HOME</button>
+        <button class="backchip" onclick="ARCADE.goBoards()"><span class="ics" data-ic="crown"></span>LEADERBOARDS</button>
+      </div>
       <div class="logo logo-foot" role="img" aria-label="DMATICS IT Solutions"></div>
     </div>
     <div class="marquee">
@@ -770,6 +843,38 @@
         <div class="hiscore"><span class="lbl">HI-SCORE</span><span id="hi-breach">—</span></div>
         <div class="btnrow"><button class="play" onclick="ARCADE.start('breach')">PLAY</button><button class="how" onclick="ARCADE.how('breach')">?</button></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FULL LEADERBOARDS ============ -->
+<div class="screen" id="boards">
+  <div class="hubwrap boardswrap">
+    <div class="menuhead">
+      <button class="backchip" onclick="ARCADE.goHub()"><span class="ics" data-ic="back"></span>ARCADE</button>
+      <div class="logo logo-foot" role="img" aria-label="DMATICS IT Solutions"></div>
+    </div>
+    <div class="marquee">
+      <h1 class="menutitle">FULL <span class="hl neon">LEADERBOARDS</span></h1>
+    </div>
+    <div class="gametabs" id="gametabs">
+      <button class="gtab on" data-g="phish" onclick="ARCADE.showBoard('phish')">PHISH HUNTER</button>
+      <button class="gtab" data-g="soc" onclick="ARCADE.showBoard('soc')">ALERT RUSH</button>
+      <button class="gtab" data-g="breach" onclick="ARCADE.showBoard('breach')">BREACH POINT</button>
+      <button class="gtab" data-g="redteam" onclick="ARCADE.showBoard('redteam')">RED TEAM OP</button>
+    </div>
+    <div class="fullboardpanel">
+      <div class="fbhead">
+        <span class="lblive" id="fblive"><span class="dotl"></span><span id="fblivetxt">LIVE</span></span>
+        <button class="lbrefresh" id="fbrefresh" onclick="ARCADE.refreshFullBoard(true)" aria-label="Refresh the leaderboard" title="Refresh"><i>⟳</i></button>
+      </div>
+      <div class="fbtablewrap scroller">
+        <table class="fbtable" id="fbtable">
+          <thead><tr id="fbthead"></tr></thead>
+          <tbody id="fbtbody"></tbody>
+        </table>
+      </div>
+      <div class="fbempty" id="fbempty" style="display:none;"></div>
     </div>
   </div>
 </div>
@@ -1770,7 +1875,7 @@ const ARCADE=(function(){
  }
  function show(id){
    if(id!=='game')clearFloaters();
-   ['land','hub','start','game','end','review'].forEach(s=>$(s).classList.toggle('on',s===id));
+   ['land','hub','start','game','end','review','boards'].forEach(s=>$(s).classList.toggle('on',s===id));
  }
  function setTheme(t){document.body.dataset.game=t;BG.setMode(t);}
 
@@ -1861,6 +1966,75 @@ const ARCADE=(function(){
 
  function goLand(){stopAll();setTheme('land');$('nav').classList.remove('on');MUSIC.play('menu');show('land');refreshHi();replayLand();}
  function goHub(){stopAll();setTheme('hub');$('nav').classList.remove('on');MUSIC.play('menu');show('hub');refreshHi();}
+
+ /* ---- Full Leaderboards page: every rank, one game at a time ----
+    A dedicated screen rather than a modal, same idea as Red Team's own
+    /leaderboard page (screenshot the ask was built from): a game picker up
+    top, a plain ranked table below, auto-refreshing while it's the screen
+    on-screen. Phish/Alert/Breach read the same board the Hall of Fame
+    already keeps (server-synced when hosted, this device only when offline).
+    Red Team doesn't post to the arcade's own board at all — it only reaches
+    the booth's Arena Hub — so that tab is additionally sourced from HUB.get(),
+    the same SSRF-safe address resolution already used for HUB.score()/event().
+    If the hub isn't reachable that tab just says so; nothing else here cares. */
+ let boardsGame='phish';
+ function goBoards(){stopAll();setTheme('hub');$('nav').classList.remove('on');MUSIC.play('menu');show('boards');showBoard(boardsGame);}
+ function showBoard(g){
+   boardsGame=g;
+   document.querySelectorAll('#gametabs .gtab').forEach(b=>b.classList.toggle('on',b.dataset.g===g));
+   refreshFullBoard(false);
+ }
+ async function fetchFullBoard(g){
+   if(g==='redteam'){
+     const j=await HUB.get('/api/leaderboard?game=redteam');
+     const rows=(j&&Array.isArray(j.board))?j.board:null;
+     if(!rows)return null;
+     return rows.map(r=>({n:String(r.n||''),s:Number(r.s)||0,
+       flags:(r.meta&&Number(r.meta.flags))||0,seconds:(r.meta&&Number(r.meta.seconds))||0}));
+   }
+   // arcade's own three games: merge the freshest server board into the local
+   // one so this page shows exactly what the Hall of Fame shows, never less.
+   const server=await fetchServerBoard(g);
+   const local=loadBoardFor(g);
+   return bestPerName(server?mergeBoards(local,server):local,10);
+ }
+ async function refreshFullBoard(manual){
+   const g=boardsGame,btn=$('fbrefresh');
+   if(btn)btn.classList.add('spin');
+   const rows=await fetchFullBoard(g);
+   if(btn)btn.classList.remove('spin');
+   if(g!==boardsGame)return;                 // player switched tabs mid-fetch
+   renderFullBoard(g,rows);
+   if(manual)SFX.tap();
+ }
+ function renderFullBoard(g,rows){
+   const thead=$('fbthead'),tbody=$('fbtbody'),empty=$('fbempty'),wrap=$('fbtable').parentElement;
+   const isRT=g==='redteam';
+   const online=isRT?HUB.enabled():apiBase()!==null;
+   $('fblive').classList.toggle('off',!online);
+   $('fblivetxt').textContent=online?(isRT?'ARENA HUB':'LIVE'):'THIS DEVICE';
+   thead.innerHTML=isRT
+     ?'<th>#</th><th>OPERATOR</th><th>FLAGS</th><th>TIME</th><th>POINTS</th>'
+     :'<th>#</th><th>PLAYER</th><th>SCORE</th>';
+   if(!rows||!rows.length){
+     wrap.style.display='none';empty.style.display='block';
+     empty.textContent=isRT
+       ?(HUB.enabled()?'No Red Team scores yet — be the first operator.':'Red Team board needs the Arena Hub reachable on the booth network.')
+       :(online?'No scores yet — be the first!':'Running offline, so this board is saved on this device only — no scores yet.');
+     return;
+   }
+   wrap.style.display='';empty.style.display='none';
+   tbody.innerHTML=rows.map((r,i)=>{
+     const pos=i+1,top=pos<=3?' top'+pos:'',medal=pos<=3?MEDAL[pos-1]+' ':'';
+     if(isRT){
+       const secs=Math.max(0,r.seconds||0),mm=Math.floor(secs/60),ss=String(secs%60).padStart(2,'0');
+       return '<tr class="'+top+'"><td class="pos">'+medal+pos+'</td><td class="who">'+esc(r.n)+
+         '</td><td>'+(r.flags||0)+'</td><td>'+mm+':'+ss+'</td><td class="pts">'+r.s+'</td></tr>';
+     }
+     return '<tr class="'+top+'"><td class="pos">'+medal+pos+'</td><td class="who">'+esc(r.n)+
+       '</td><td class="pts">'+r.s+'</td></tr>';
+   }).join('');
+ }
  // Re-run the staggered entrance every time the landing screen is shown, so
  // returning from the menu feels like the attract loop starting over.
  function replayLand(){document.querySelectorAll('#land .l-el').forEach(el=>{
@@ -2347,8 +2521,20 @@ const ARCADE=(function(){
          body:JSON.stringify(body),keepalive:true,mode:'cors'}).catch(function(){});
      }catch(e){}
    }
+   /* GET counterpart to post() — same base()/usable() resolution, so a page
+      asking the hub for a board can never be pointed anywhere the booth LAN
+      guard above wouldn't already allow. Read-only, never load-bearing:
+      on any failure (hub off, unreachable, bad JSON) this resolves to null
+      and callers fall back to "no data" rather than throwing. */
+   function get(path){
+     const b=base();if(!b)return Promise.resolve(null);
+     return fetch(b+path,{cache:'no-store',mode:'cors'})
+       .then(function(r){return r.ok?r.json():null;})
+       .catch(function(){return null;});
+   }
    return{
      enabled:function(){return base()!==null;},
+     get:get,
      event:function(kind,extra){
        post('/api/events',Object.assign({source:'arcade',kind:kind,station:'ARCADE-IPAD'},extra||{}));
      },
@@ -2414,7 +2600,7 @@ const ARCADE=(function(){
  }
  function closeReview(){show('end');}
 
- return{sync,hint,adminReset,adminClearName,pickClearGame,setMusic,setSfx,goLand,goHub,toggleSfx,toggleMusic,how,openSetup,closeModal,start,begin,act,saveScore,openReview,closeReview,_phish:phishAnswer,_hi:refreshHi};
+ return{sync,hint,adminReset,adminClearName,pickClearGame,setMusic,setSfx,goLand,goHub,goBoards,showBoard,refreshFullBoard,toggleSfx,toggleMusic,how,openSetup,closeModal,start,begin,act,saveScore,openReview,closeReview,_phish:phishAnswer,_hi:refreshHi};
 })();
 
 $('btnLegit').addEventListener('click',()=>ARCADE._phish(false));
@@ -2469,6 +2655,17 @@ setInterval(()=>{
 },15000);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)return;
   if($('land').classList.contains('on')||$('hub').classList.contains('on'))ARCADE.sync(false);});
+
+/* Full Leaderboards page: refresh every 5s, matching Red Team's own
+   /leaderboard page cadence, but only while that screen is actually the one
+   on screen (and the tab is visible) — same guarded pattern as the 15s
+   Hall-of-Fame sync just above, so an idle boards screen never polls forever
+   in a background tab. */
+setInterval(()=>{
+  if(document.hidden)return;
+  if(!$('boards').classList.contains('on'))return;
+  ARCADE.refreshFullBoard(false);
+},5000);
 
 /* ============ BOOT SEQUENCE ============
    A short console cold-start typing effect, reused in two places:
