@@ -252,6 +252,20 @@ def init_db():
         # take the booth down over historical rows.
         print(f"[db] could not enforce one-row-per-player ({error}) — "
               f"an existing duplicate is probably already on the board", file=sys.stderr)
+    # One row per STATION, not per player: this is the "only N laptops, only N
+    # concurrent operators" seat, claimed at registration and freed when that
+    # run ends. A SQLite table rather than an in-process dict because gunicorn
+    # runs more than one worker (see the SECRET_KEY warning below) — an
+    # in-memory seat map is invisible to every worker but the one that set it,
+    # so two visitors hitting two different workers could both "win" the same
+    # station's seat.
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS active_sessions (
+            station     TEXT PRIMARY KEY,
+            player      TEXT NOT NULL,
+            started_at  REAL NOT NULL
+        )
+    """)
     con.commit()
     con.close()
 
@@ -307,6 +321,44 @@ def name_taken(name):
 
 
 # --------------------------------------------------------------------------- #
+#  Station seats — exactly one live operator per known laptop, no more
+# --------------------------------------------------------------------------- #
+def claim_station(station, player):
+    """
+    Try to seat `player` at `station`. Returns None on success (seated), or
+    the current occupant's name if the seat is genuinely still in use.
+
+    A seat that was never explicitly freed — the previous operator closed the
+    tab, the laptop was rebooted, whatever — is swept up here rather than
+    left locking that laptop out for the rest of the show: once GAME_SECONDS
+    has passed since it was claimed, the run behind it is over one way or
+    another (expire_if_over would end it the moment that browser made another
+    request), so a stale seat is treated as free.
+    """
+    now = time.time()
+    with closing(db()) as con:
+        row = con.execute(
+            "SELECT player, started_at FROM active_sessions WHERE station = ?",
+            (station,)).fetchone()
+        if row and (now - float(row["started_at"])) < GAME_SECONDS:
+            return row["player"]
+        con.execute(
+            "INSERT OR REPLACE INTO active_sessions (station, player, started_at) "
+            "VALUES (?,?,?)", (station, player, now))
+        con.commit()
+    return None
+
+
+def release_station(station):
+    """Free a laptop's seat. Safe to call more than once for the same run."""
+    if not station:
+        return
+    with closing(db()) as con:
+        con.execute("DELETE FROM active_sessions WHERE station = ?", (station,))
+        con.commit()
+
+
+# --------------------------------------------------------------------------- #
 #  Per-player progress (all in the signed session cookie)
 # --------------------------------------------------------------------------- #
 def fresh_progress():
@@ -323,6 +375,10 @@ def fresh_progress():
         "bust_reason": None,
         "saved": False,
         "ended": False,                # run finished; score banked, no more play
+        "station": None,               # which laptop's seat this run claimed —
+                                       # authoritative for release_station, so a
+                                       # later ?station= elsewhere in the same
+                                       # browser can't orphan the claim
         # --- SOC defence state ---------------------------------------------
         "heat": 0.0,                   # detection confidence, 0-100
         "heat_at": None,               # when heat was last recomputed (decay)
@@ -359,8 +415,16 @@ def station_id():
         return DEFAULT_STATION
     requested = (request.args.get("station") or "").strip().upper()
     if requested:
-        session["station"] = re.sub(r"[^A-Z0-9-]", "", requested)[:16] or DEFAULT_STATION
-        session.modified = True
+        requested = re.sub(r"[^A-Z0-9-]", "", requested)[:16]
+        # Only a name from KNOWN_STATIONS is honoured. Without this, ?station=
+        # accepted anything — the booth has exactly len(KNOWN_STATIONS) real
+        # laptops, but a visitor's own phone hitting ?station=MYPHONE minted a
+        # brand-new "laptop" on the spot, and claim_station's one-seat-per-
+        # station rule protects seats that don't exist for a station nobody
+        # actually has. An unrecognised name is ignored, not substituted.
+        if requested in KNOWN_STATIONS:
+            session["station"] = requested
+            session.modified = True
     return session.get("station") or DEFAULT_STATION
 
 
@@ -607,6 +671,7 @@ def expire_if_over():
     p["ended"] = True
     session.modified = True
     record_score(finished=len(p["captured"]) == len(FLAGS))
+    release_station(p.get("station") or station_id())
     hub.emit("run_end", player=p.get("player"), station=station_id(),
              title="Adversary session closed — clock expired",
              detail=f"{len(p['captured'])} of {len(FLAGS)} objectives captured "
@@ -702,6 +767,7 @@ def bust(reason):
         p["heat"] = 100.0
         p["heat_at"] = time.time()
         record_score(finished=False)
+        release_station(p.get("station") or station_id())
         session.modified = True
         hub.emit("soc_contain", player=p.get("player"), station=station_id(),
                  title="Containment executed — adversary session terminated",
@@ -853,6 +919,7 @@ def index():
                                        minutes=max(1, round(GAME_SECONDS / 60)),
                                        total_points=sum(POINTS.values()),
                                        stage_count=len(FLAGS))
+            station = station_id()
             # Bank whatever the previous occupant of this browser earned before
             # wiping it. A visitor who hits Back and types a new handle used to
             # delete an unsaved run outright — the commonest way a real score
@@ -863,14 +930,34 @@ def index():
                     record_score(finished=len(previous.get("captured", [])) == len(FLAGS))
                 except Exception:                    # never block a new player
                     app.logger.exception("[run] could not bank the previous run")
-            keep_station = session.get("station")
+                # This browser's own seat, not a rival's — free it before the
+                # occupancy check below, so re-registering at your own laptop
+                # never reads as "station busy".
+                release_station(previous.get("station") or station)
+
+            # Exactly len(KNOWN_STATIONS) laptops, one live operator each. This
+            # is the whole "2 laptops, 2 players at a time" rule enforced in
+            # one place: claim_station refuses a second concurrent seat at a
+            # station that already has a run in progress — whether that's a
+            # crowd of visitors queuing at one physical laptop, or someone on
+            # the show-floor wifi reusing a laptop's ?station= link from their
+            # own phone to sneak in a second game the SOC Wall never shows.
+            occupant = claim_station(station, name)
+            if occupant:
+                flash(f"{station} already has an active run ({occupant}). "
+                      f"Wait for that operator to finish, or use the other laptop.")
+                return render_template("index.html", title=APP_TITLE,
+                                       minutes=max(1, round(GAME_SECONDS / 60)),
+                                       total_points=sum(POINTS.values()),
+                                       stage_count=len(FLAGS))
+
             session["p"] = fresh_progress()
             session["p"]["player"] = name
             session["p"]["started_at"] = time.time()
-            if keep_station:
-                session["station"] = keep_station
+            session["p"]["station"] = station
+            session["station"] = station
             session.modified = True
-            hub.emit("run_start", player=name, station=station_id(),
+            hub.emit("run_start", player=name, station=station,
                      title=f"New adversary session opened against {TARGET_ORG}",
                      detail="Operator registered at a booth station and started the kill chain.",
                      stage="Reconnaissance", heat=0, posture="CLEAR", points=0)
@@ -1322,6 +1409,7 @@ def submit():
                 # Full compromise -> end the run and bank the score right away.
                 p["ended"] = True
                 record_score(finished=True)
+                release_station(p.get("station") or station_id())
                 hub.emit("run_win", player=p["player"], station=station_id(),
                          title=f"Full compromise of {TARGET_ORG} — crown jewel exfiltrated",
                          detail=f"All five objectives captured in {elapsed()}s. "
@@ -1375,24 +1463,33 @@ def soc_status():
 def finish():
     p = progress()
     done = len(p["captured"]) == len(FLAGS)
-    already = p.get("saved")
-    # Records once (bust / win already recorded on their own; this covers timeout).
-    # Mark the run over. finish() banked the score but left the player able to
-    # keep going, and record_score is one-shot on p["saved"] — so capturing one
-    # flag, visiting /finish, then capturing the other four left the board
-    # showing 10 points forever. brief.html auto-navigates here at 00:00, so any
-    # player who left a tab open and came back hit exactly this.
-    p = progress()
     # Only END the run when it is actually over. finish() used to set ended=True
     # and bank on EVERY visit, so one stray navigation — browser Back from the
     # debrief, the soc.js failsafe, a hub operator command — permanently killed a
     # live run at whatever score it happened to be on, and every later submit
     # silently did nothing.
     over = (time_left() <= 0) or p.get("busted") or done or p.get("ended")
-    if over:
-        p["ended"] = True
-        session.modified = True
-        record_score(finished=done)
+    if not over:
+        # Reached with time still on the clock, not busted, not done - nothing
+        # to debrief. This page has no link to it under any of those
+        # conditions, but nothing stops a visitor from just typing the URL
+        # (this crowd especially). Rendering the debrief here used to claim
+        # "Time / Session Ended" over a run that was very much still live, AND
+        # told the hub run_end — flipping the station inactive on the SOC Wall
+        # while the operator was still standing at the laptop playing. Send
+        # them back to the mission instead of lying to the wall.
+        return redirect(url_for("brief"))
+    already = p.get("saved")
+    # Records once (bust / win already recorded on their own; this covers timeout).
+    # record_score is one-shot on p["saved"] — so capturing one flag, visiting
+    # /finish, then capturing the other four left the board showing 10 points
+    # forever. brief.html auto-navigates here at 00:00, so any player who left
+    # a tab open and came back hit exactly this. (We only get here at all when
+    # `over` is true — see the redirect above — so no need to check it again.)
+    p["ended"] = True
+    session.modified = True
+    record_score(finished=done)
+    release_station(p.get("station") or station_id())
     if not already and not done and not p.get("busted"):
         hub.emit("run_end", player=p["player"], station=station_id(),
                  title="Adversary session closed — clock expired",
@@ -1402,7 +1499,44 @@ def finish():
     return render_template("finish.html", title=APP_TITLE,
                            p=p, elapsed=elapsed(), done=done, total=len(FLAGS),
                            busted=p.get("busted", False),
-                           bust_reason=p.get("bust_reason"))
+                           bust_reason=p.get("bust_reason"),
+                           stopped=(request.args.get("stopped") == "1"))
+
+
+@app.route("/stop", methods=["POST"])
+@require_player
+def stop_game():
+    """
+    Voluntary forfeit.
+
+    The nav's Leaderboard link takes the whole page away from the game with no
+    link back to Mission Control - a visitor who only wanted to check the board
+    was left with a session ticking down in the background and no way back to
+    it. This is the explicit way out: bank whatever is captured right now and
+    end the run for good, exactly like a clock expiry does. "One shot per
+    handle" (see name_taken) is what then stops this name registering again,
+    which is why the confirmation in front of this button has to say so
+    plainly before it posts here.
+    """
+    p = progress()
+    if not p.get("ended") and not p.get("busted"):
+        p["ended"] = True
+        session.modified = True
+        record_score(finished=len(p["captured"]) == len(FLAGS))
+        release_station(p.get("station") or station_id())
+        # "run_end", not a new kind: the hub only knows how to file this under
+        # RECON/ACCESS/EXFIL classification and, critically, only "run_end" (and
+        # "run_win") flip the station back to inactive on the arena board (see
+        # gisec-hub/server.js). A bespoke "run_stop" kind would fall through the
+        # hub's unknown-kind default and leave this operator's station reading
+        # active until the 15-minute reaper caught it.
+        hub.emit("run_end", player=p.get("player"), station=station_id(),
+                 title="Adversary session closed — stopped by the operator",
+                 detail=f"{len(p['captured'])} of {len(FLAGS)} objectives captured "
+                        f"before the operator ended the run.",
+                 heat=current_heat(p), posture=posture_for(p),
+                 points=p.get("points", 0))
+    return redirect(url_for("finish", stopped=1))
 
 
 # --------------------------------------------------------------------------- #
@@ -1410,7 +1544,14 @@ def finish():
 # --------------------------------------------------------------------------- #
 @app.route("/leaderboard")
 def leaderboard():
-    return render_template("leaderboard.html", title=APP_TITLE)
+    # Read without minting: progress() would start a fresh game session for a
+    # passer-by who only wants to check the board. A live, not-yet-ended run
+    # already sitting in THIS browser's cookie is what unlocks the Stop Game
+    # button below - the fix for landing here mid-game with no way back to a
+    # running clock.
+    p = session.get("p") or {}
+    live_run = bool(p.get("player") and not p.get("ended") and not p.get("busted"))
+    return render_template("leaderboard.html", title=APP_TITLE, live_run=live_run)
 
 
 @app.route("/leaderboard/data")

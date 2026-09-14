@@ -29,6 +29,10 @@
     <small>SOC</small><i></i><b>CLEAR</b>
   </div>
   <a class="pill" href="{{ url_for('brief') }}">Mission</a>
+  {% if not p.ended and not p.busted %}
+  <form id="stop-form" method="post" action="{{ url_for('stop_game') }}" style="display:none"></form>
+  <button type="button" class="pill danger" id="stop-game-btn" title="End your run now and bank your score">Stop Game</button>
+  {% endif %}
   {% endif %}
   <a class="pill" href="{{ url_for('leaderboard') }}">Leaderboard</a>
 </div>
@@ -41,6 +45,23 @@
 <script src="{{ url_for('static', filename='js/hubwatch.js') }}"></script>
 <script src="{{ url_for('static', filename='js/win.js') }}"></script>
 <script src="{{ url_for('static', filename='js/fx.js') }}"></script>
+<script>
+/* Stop Game — only rendered when this session has a live run (see the nav
+   above). Plain confirm() on purpose: this has to work identically on every
+   page that extends this shell, with no extra markup to get wrong. */
+(function () {
+  var btn = document.getElementById('stop-game-btn');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    var sure = confirm(
+      "Stop the game now?\n\n" +
+      "Your current score will be saved to the leaderboard, and you will not " +
+      "be able to play again under this name."
+    );
+    if (sure) document.getElementById('stop-form').submit();
+  });
+})();
+</script>
 {% block script %}{% endblock %}
 </body>
 </html>

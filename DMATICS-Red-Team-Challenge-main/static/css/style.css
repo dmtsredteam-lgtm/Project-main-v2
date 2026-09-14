@@ -52,6 +52,11 @@ a:hover{text-decoration:underline;text-shadow:0 0 8px var(--glow)}
 .pill{border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;
   white-space:nowrap;color:var(--muted);background:linear-gradient(180deg,#1c0505,#120303)}
 .pill b{color:var(--neon)}
+/* A <button> styled as a nav pill, for actions that are not links (Stop Game) -
+   buttons do not inherit font/cursor the way an <a> does, so both are reset. */
+button.pill{font:inherit;cursor:pointer;appearance:none;-webkit-appearance:none}
+.pill.danger{border-color:var(--neon);color:var(--red)}
+.pill.danger:hover{background:rgba(255,26,51,.14);color:#fff}
 
 .wrap{max-width:960px;margin:0 auto;padding:32px 24px;position:relative;z-index:1}
 

@@ -10,6 +10,10 @@
     {% elif done %}
       <div class="tag">Operation Complete</div>
       <h1 class="glitch" style="margin:8px 0">🏆 Full Compromise!</h1>
+    {% elif stopped %}
+      <div class="tag">Stopped by Operator</div>
+      <h1 style="margin:8px 0">Debrief</h1>
+      <p class="muted" style="text-align:left">You ended this run yourself. Your score has been saved to the leaderboard, and this handle can't play again.</p>
     {% else %}
       <div class="tag">Time / Session Ended</div>
       <h1 style="margin:8px 0">Debrief</h1>

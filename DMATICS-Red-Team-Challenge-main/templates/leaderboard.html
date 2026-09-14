@@ -13,7 +13,15 @@
   <img class="nav-logo" src="{{ url_for('static', filename='img/dmatics-white.png') }}" alt="DMATICS">
   <div class="brand glitch"><small>RED TEAM OPS</small></div>
   <div class="spacer"></div>
+  {% if live_run %}
+  {# A run is still ticking down in this browser's session — "Play ▸" used to
+     point straight at registration, which looked like it was starting the
+     whole game over from a name prompt. Send them back to where the run
+     actually is instead. #}
+  <a class="pill" href="{{ url_for('brief') }}">Continue ▸</a>
+  {% else %}
   <a class="pill" href="{{ url_for('index') }}">Play ▸</a>
+  {% endif %}
 </div>
 <div class="lb">
   <img class="lb-logo" src="{{ url_for('static', filename='img/dmatics-white.png') }}" alt="DMATICS IT Solutions LLC">
