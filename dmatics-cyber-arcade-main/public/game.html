@@ -565,13 +565,24 @@
   @media(max-width:680px){.lbcols{grid-template-columns:1fr;perspective:none;}}
   .lbcol{display:flex;flex-direction:column;gap:.5em;min-width:0;padding:.7em .8em .8em;
     border-radius:.8em;border:.12em solid var(--edge);border-top-width:.22em;
-    background:rgba(244,247,255,.035);transform-style:preserve-3d;}
+    background:rgba(244,247,255,.035);transform-style:preserve-3d;cursor:pointer;}
+  /* Each column is now a tap-through to that game's full leaderboard. A
+     brightness bump rather than a scale/translate — the column is already
+     mid-animation (shelfL/M/R below) and a transform here would fight it. */
+  .lbcol:active{filter:brightness(1.18);}
   .lbcol.phish{border-top-color:#ff5d73;box-shadow:0 -.3em 1.4em -.6em rgba(255,93,115,.55);
     animation:shelfL 9s ease-in-out infinite;}
   .lbcol.soc{border-top-color:#8fe635;box-shadow:0 -.3em 1.4em -.6em rgba(143,230,53,.5);
     animation:shelfM 9s ease-in-out infinite;}
   .lbcol.breach{border-top-color:#b98cff;box-shadow:0 -.3em 1.4em -.6em rgba(185,140,255,.55);
     animation:shelfR 9s ease-in-out infinite;}
+  /* Columns are tappable now, and they never stop swaying (rotateY, infinite).
+     A tap that lands while the card is mid-sway can shift the card's own
+     bounding box between touchstart and touchend — the exact "moved under the
+     finger" condition that makes a touchscreen cancel a tap as a scroll
+     instead of a click. Freezing the sway the instant a finger is down keeps
+     the tap target still for the one moment it actually matters. */
+  .lbcol.phish:active,.lbcol.soc:active,.lbcol.breach:active{animation-play-state:paused;}
   @keyframes shelfL{0%,100%{transform:rotateY(9deg) translateZ(-10px) translateY(0);}50%{transform:rotateY(13deg) translateZ(-18px) translateY(-.3em);}}
   @keyframes shelfM{0%,100%{transform:rotateY(0) translateZ(14px) translateY(-.2em);}50%{transform:rotateY(0) translateZ(20px) translateY(0);}}
   @keyframes shelfR{0%,100%{transform:rotateY(-9deg) translateZ(-10px) translateY(0);}50%{transform:rotateY(-13deg) translateZ(-18px) translateY(-.3em);}}
@@ -1905,7 +1916,10 @@ const ARCADE=(function(){
            '<span class="who"><span class="nm">'+esc(r.n)+'</span></span>'+
            '<span class="pts">'+r.s+'</span></div>').join('')
        : '<div class="lbempty">No scores yet</div>';
-     return '<div class="lbcol '+g+'"><div class="lbcolhead">'+GLABEL_ADM[g]+'</div><div class="lbcolbody">'+list+'</div></div>';
+     return '<div class="lbcol '+g+'" onclick="ARCADE.goBoards(\''+g+'\')" '+
+       'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();ARCADE.goBoards(\''+g+'\')}" '+
+       'role="button" tabindex="0" aria-label="Open the full '+GLABEL_ADM[g]+' leaderboard">'+
+       '<div class="lbcolhead">'+GLABEL_ADM[g]+'</div><div class="lbcolbody">'+list+'</div></div>';
    }).join('');
    // Everything derived from the boards is refreshed HERE, so a board change can
    // never leave one number stale while another updates (the old bug: the server
@@ -1978,7 +1992,11 @@ const ARCADE=(function(){
     the same SSRF-safe address resolution already used for HUB.score()/event().
     If the hub isn't reachable that tab just says so; nothing else here cares. */
  let boardsGame='phish';
- function goBoards(){stopAll();setTheme('hub');$('nav').classList.remove('on');MUSIC.play('menu');show('boards');showBoard(boardsGame);}
+ // g is optional — passed when a Hall of Fame column (on the landing screen)
+ // is tapped directly, so that column's game opens pre-selected instead of
+ // always landing on Phish Hunter; omitted (from the menu's own LEADERBOARDS
+ // button) it just reopens whichever tab was last viewed.
+ function goBoards(g){stopAll();setTheme('hub');$('nav').classList.remove('on');MUSIC.play('menu');show('boards');showBoard(g||boardsGame);}
  function showBoard(g){
    boardsGame=g;
    document.querySelectorAll('#gametabs .gtab').forEach(b=>b.classList.toggle('on',b.dataset.g===g));
@@ -2609,7 +2627,7 @@ $('btnPhish').addEventListener('click',()=>ARCADE._phish(true));
 /* Every button, chip, cabinet and node gives audible feedback. One delegated
    listener rather than a handler per control, so nothing can be missed. */
 addEventListener('pointerdown',(e)=>{
-  const el=e.target&&e.target.closest&&e.target.closest('button,.node,.cab .play,.navchip,.setupchip');
+  const el=e.target&&e.target.closest&&e.target.closest('button,.node,.cab .play,.navchip,.setupchip,.lbcol');
   if(el&&!el.disabled)SFX.click();
 },true);
 
