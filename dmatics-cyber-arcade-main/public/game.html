@@ -2115,7 +2115,7 @@ const ARCADE=(function(){
    if(locked||!running||game!=='phish')return;locked=true;
    const right=(saidPhish===cur.phish);
    history.push({q:cur.subj,detail:cur.from+' <'+cur.addr+'>',your:saidPhish?'PHISH':'LEGIT',correct:cur.phish?'PHISH — it\'s a fake':'LEGIT — it\'s genuine',status:right?'right':'wrong',reason:cur.clue,act:cur.act});
-   const stamp=$('stamp');stamp.textContent=saidPhish?'PHISH!':'LEGIT';stamp.className='stamp show '+(saidPhish?'p':'l');
+   const stamp=$('stamp');stamp.textContent=cur.phish?'PHISH!':'LEGIT';stamp.className='stamp show '+(cur.phish?'p':'l');
    const card=$('card');
    if(right)card.classList.add(saidPhish?'fly-right':'fly-left');
    else{card.classList.add('wrongcard');const ad=card.querySelector('.addr');if(ad){ad.style.background='#ffd7d7';ad.style.color='#b3122e';ad.style.borderRadius='.3em';ad.style.padding='.05em .3em';}}
